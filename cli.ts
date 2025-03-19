@@ -23,12 +23,13 @@ type PackageManager = keyof typeof PACKAGE_MANAGERS
 interface Args {
 	name?: string
 	clone?: string
+	skipDeploy?: boolean
 }
 
 async function getProjectDetails() {
 	// Parse command line arguments
 	const argv = (await yargs(hideBin(process.argv))
-		.usage("Usage: $0 --name <name> [options]")
+		.usage("Usage: $0 --name <n> [options]")
 		.option("name", {
 			type: "string",
 			describe: "Name of the MCP server"
@@ -37,11 +38,20 @@ async function getProjectDetails() {
 			type: "string",
 			describe: "GitHub URL of an existing MCP server to clone"
 		})
+		.option("skip-deploy", {
+			type: "boolean",
+			describe: "Skip the deployment step (for testing)",
+			default: false
+		})
 		.example([
 			["$0 --name my-server", "Create a new MCP server"],
 			[
 				"$0 --name my-server --clone https://github.com/user/repo",
 				"Clone an existing MCP server"
+			],
+			[
+				"$0 --name my-server --skip-deploy",
+				"Create a new MCP server without deploying"
 			]
 		])
 		.help().argv) as Args
@@ -49,6 +59,7 @@ async function getProjectDetails() {
 	const isCloning = !!argv.clone
 	const githubUrl = argv.clone || ""
 	let projectName = argv.name || ""
+	const skipDeploy = argv.skipDeploy || process.env.SKIP_DEPLOY === "true"
 
 	if (isCloning && !githubUrl) {
 		console.error(pc.red("GitHub URL is required when using --clone flag"))
@@ -87,25 +98,36 @@ async function getProjectDetails() {
 		process.exit(1)
 	}
 
-	// Ask for package manager preference
-	const { packageManager } = await prompts({
-		type: "select",
-		name: "packageManager",
-		message: "Which package manager do you want to use?",
-		choices: [
-			{ title: "bun", value: "bun" },
-			{ title: "npm", value: "npm" },
-			{ title: "pnpm", value: "pnpm" },
-			{ title: "yarn", value: "yarn" }
-		]
-	})
+	// Check for preferred package manager from environment variable
+	const preferredPm = process.env.PREFERRED_PM as PackageManager | undefined;
+	let packageManager: PackageManager;
 
-	if (!packageManager) {
-		console.error(pc.red("Package manager selection is required"))
-		process.exit(1)
+	if (preferredPm && Object.keys(PACKAGE_MANAGERS).includes(preferredPm)) {
+		packageManager = preferredPm;
+		console.log(pc.cyan(`Using package manager: ${packageManager} (from environment)`));
+	} else {
+		// Ask for package manager preference
+		const response = await prompts({
+			type: "select",
+			name: "packageManager",
+			message: "Which package manager do you want to use?",
+			choices: [
+				{ title: "bun", value: "bun" },
+				{ title: "npm", value: "npm" },
+				{ title: "pnpm", value: "pnpm" },
+				{ title: "yarn", value: "yarn" }
+			]
+		})
+
+		packageManager = response.packageManager;
+
+		if (!packageManager) {
+			console.error(pc.red("Package manager selection is required"))
+			process.exit(1)
+		}
 	}
 
-	return { projectName, packageManager, githubUrl, isCloning }
+	return { projectName, packageManager, githubUrl, isCloning, skipDeploy }
 }
 
 async function setupProjectFiles(projectName: string) {
@@ -162,7 +184,7 @@ function setupDependencies(targetDir: string, packageManager: PackageManager) {
 	})
 }
 
-function setupMCPAndWorkers(targetDir: string, packageManager: PackageManager) {
+function setupMCPAndWorkers(targetDir: string, packageManager: PackageManager, skipDeploy: boolean) {
 	console.log(
 		pc.cyan("\n⚡️ Setting up MCP and deploying to Cloudflare Workers...")
 	)
@@ -180,6 +202,12 @@ function setupMCPAndWorkers(targetDir: string, packageManager: PackageManager) {
 		cwd: targetDir,
 		stdio: "inherit"
 	})
+
+	if (skipDeploy) {
+		console.log(pc.yellow("\n⚠️ Skipping deployment (--skip-deploy flag or SKIP_DEPLOY=true was set)"));
+		return `${setupCommand} workers-mcp run ${targetDir} http://localhost:8787 ${targetDir}`;
+	}
+
 	execSync(`${setupCommand} workers-mcp secret upload`, {
 		cwd: targetDir,
 		stdio: "inherit"
@@ -205,19 +233,14 @@ async function getMCPCommand(projectName: string, targetDir: string) {
 	return [execPath, "run", projectName, workerUrl, targetDir].join(" ")
 }
 
-async function handleFinalSteps(targetDir: string, mcpCommand: string) {
-	// Output the MCP command as JSON
-	const output = {
-		content: [
-			{
-				type: "text",
-				text: mcpCommand
-			}
-		]
-	}
-
+async function handleFinalSteps(
+	targetDir: string,
+	mcpCommand: string,
+	projectName: string
+) {
+	// Output the full MCP server object as JSON
 	console.log("\n")
-	console.log(JSON.stringify(output, null, 2))
+	console.log(JSON.stringify({ command: mcpCommand }, null, 2))
 	console.log("\n")
 	console.log(pc.green("\n✨ MCP server created successfully!"))
 	console.log(pc.cyan("Happy hacking! 🚀\n"))
@@ -324,7 +347,7 @@ async function main() {
 	console.log(pc.bgCyan(pc.black(" ⚡️ Welcome to create-mcp CLI ")))
 
 	try {
-		const { projectName, packageManager, githubUrl, isCloning } =
+		const { projectName, packageManager, githubUrl, isCloning, skipDeploy } =
 			await getProjectDetails()
 
 		let mcpCommand: string
@@ -341,11 +364,17 @@ async function main() {
 			targetDir = await setupProjectFiles(projectName)
 			await updateConfigurations(targetDir, projectName)
 			setupDependencies(targetDir, packageManager as PackageManager)
-			setupMCPAndWorkers(targetDir, packageManager as PackageManager)
-			mcpCommand = await getMCPCommand(projectName, targetDir)
+
+			if (skipDeploy) {
+				// If skipping deployment, just return a local command
+				mcpCommand = `${npmWhich(targetDir).sync("workers-mcp")} run ${projectName} http://localhost:8787 ${targetDir}`;
+			} else {
+				setupMCPAndWorkers(targetDir, packageManager as PackageManager, skipDeploy)
+				mcpCommand = await getMCPCommand(projectName, targetDir)
+			}
 		}
 
-		await handleFinalSteps(targetDir, mcpCommand)
+		await handleFinalSteps(targetDir, mcpCommand, projectName)
 	} catch (error) {
 		console.error(
 			pc.red("Error creating project:"),
