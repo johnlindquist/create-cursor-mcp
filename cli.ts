@@ -198,45 +198,20 @@ async function getMCPCommand(projectName: string) {
 }
 
 async function handleFinalSteps(targetDir: string, mcpCommand: string) {
-	// Copy command to clipboard
-	execSync(`echo "${mcpCommand}" | pbcopy`)
-
-	// Show command with nice spacing
-	console.log("\n")
-	console.log(
-		pc.white(
-			"Your MCP server command has been copied to clipboard. Here it is for reference:"
-		)
-	)
-	console.log("\n")
-	console.log(pc.cyan(mcpCommand))
-	console.log("\n")
-	console.log(
-		pc.white(
-			"Add it to Cursor by going to Settings -> Features -> MCP Servers"
-		)
-	)
-	console.log("\n")
-
-	// Ask if user wants to open in Cursor
-	const { openInCursor } = await prompts({
-		type: "confirm",
-		name: "openInCursor",
-		message: "Would you like to open the project in Cursor?",
-		initial: true
-	})
-
-	if (openInCursor) {
-		execSync(`cursor ${targetDir}`, { stdio: "inherit" })
+	// Output the MCP command as JSON
+	const output = {
+		content: [
+			{
+				type: "text",
+				text: mcpCommand
+			}
+		]
 	}
 
+	console.log("\n")
+	console.log(JSON.stringify(output, null, 2))
+	console.log("\n")
 	console.log(pc.green("\n✨ MCP server created successfully!"))
-	if (!openInCursor) {
-		console.log(pc.white("\nYou can open the project later with:"))
-		console.log(pc.cyan(`  cursor ${targetDir}\n`))
-	}
-
-	// Add closing message
 	console.log(pc.cyan("Happy hacking! 🚀\n"))
 }
 
