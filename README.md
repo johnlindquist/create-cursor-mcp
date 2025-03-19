@@ -107,6 +107,8 @@ When your PR is merged to the main branch, it will automatically:
 3. Create a release on GitHub with release notes
 4. Publish to npm
 
+> **Note:** This package uses fully automated semantic versioning. Version numbers are determined by commit messages.
+
 ## Acknowledgements
 
 This project would not be possible without [workers-mcp](https://github.com/cloudflare/workers-mcp) made by [@geelen](https://github.com/geelen)
