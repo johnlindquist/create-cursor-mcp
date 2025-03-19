@@ -181,20 +181,15 @@ function setupMCPAndWorkers(targetDir: string, packageManager: PackageManager) {
 	})
 }
 
-async function getMCPCommand(projectName: string) {
-	const homedir = process.env.HOME || process.env.USERPROFILE || ""
-	const claudeConfigPath = join(
-		homedir,
-		"Library/Application Support/Claude/claude_desktop_config.json"
-	)
-	const claudeConfig = JSON.parse(await readFile(claudeConfigPath, "utf-8"))
+async function getMCPCommand(projectName: string, targetDir: string) {
+	// Get workers-mcp executable path
+	const execPath = npmWhich(targetDir).sync("workers-mcp")
 
-	const mcpServer = claudeConfig.mcpServers[projectName]
-	if (!mcpServer) {
-		throw new Error("Could not find MCP server in Claude desktop config")
-	}
+	// Get the worker URL (default format)
+	const workerUrl = `https://${projectName}.workers.dev`
 
-	return [mcpServer.command, ...mcpServer.args].join(" ")
+	// Construct MCP command
+	return [execPath, "run", projectName, workerUrl, targetDir].join(" ")
 }
 
 async function handleFinalSteps(targetDir: string, mcpCommand: string) {
@@ -322,14 +317,17 @@ async function main() {
 			await updateConfigurations(targetDir, projectName)
 			setupDependencies(targetDir, packageManager as PackageManager)
 			setupMCPAndWorkers(targetDir, packageManager as PackageManager)
-			mcpCommand = await getMCPCommand(projectName)
+			mcpCommand = await getMCPCommand(projectName, targetDir)
 		}
 
 		await handleFinalSteps(targetDir, mcpCommand)
 	} catch (error) {
-		console.error(pc.red("Error creating project:"), error)
+		console.error(pc.red("Error creating project:"), error instanceof Error ? error.message : error)
 		process.exit(1)
 	}
 }
 
-main().catch(console.error)
+main().catch((error) => {
+	console.error(pc.red("Error:"), error instanceof Error ? error.message : error)
+	process.exit(1)
+})
