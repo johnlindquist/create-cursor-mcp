@@ -18,7 +18,9 @@ function getTemplateDir() {
 
 	// Try to find template in the package directory first
 	const packageTemplateDir = join(__dirname, "template")
-	console.log(pc.yellow(`Looking in package directory: ${packageTemplateDir}`))
+	console.log(
+		pc.yellow(`Looking in package directory: ${packageTemplateDir}`)
+	)
 	if (existsSync(packageTemplateDir)) {
 		console.log(pc.green("Found template in package directory!"))
 		return packageTemplateDir
@@ -26,7 +28,11 @@ function getTemplateDir() {
 
 	// If not found, try to find it in the node_modules directory
 	const nodeModulesTemplateDir = join(__dirname, "..", "..", "template")
-	console.log(pc.yellow(`Looking in node_modules directory: ${nodeModulesTemplateDir}`))
+	console.log(
+		pc.yellow(
+			`Looking in node_modules directory: ${nodeModulesTemplateDir}`
+		)
+	)
 	if (existsSync(nodeModulesTemplateDir)) {
 		console.log(pc.green("Found template in node_modules directory!"))
 		return nodeModulesTemplateDir
@@ -40,7 +46,11 @@ function getTemplateDir() {
 		return join(packageRootDir, "template")
 	}
 
-	console.log(pc.red("\n❌ Template directory not found in any of the expected locations:"))
+	console.log(
+		pc.red(
+			"\n❌ Template directory not found in any of the expected locations:"
+		)
+	)
 	console.log(pc.red(`1. ${packageTemplateDir}`))
 	console.log(pc.red(`2. ${nodeModulesTemplateDir}`))
 	console.log(pc.red(`3. ${join(packageRootDir, "template")}`))
@@ -225,7 +235,20 @@ function setupDependencies(targetDir: string, packageManager: PackageManager) {
 	})
 }
 
-function setupMCPAndWorkers(
+// Define a function to get the package manager run command
+function getRunCommand(packageManager: PackageManager) {
+	const baseCommand = packageManager === "npm"
+		? "npm run"
+		: packageManager === "yarn"
+			? "yarn"
+			: packageManager === "pnpm"
+				? "pnpm"
+				: "bun run"
+
+	return (targetDir: string) => `cd ${targetDir} && ${baseCommand}`
+}
+
+async function setupMCPAndWorkers(
 	targetDir: string,
 	packageManager: PackageManager,
 	skipDeploy: boolean
@@ -264,9 +287,8 @@ function setupMCPAndWorkers(
 
 	// Deploy the worker
 	console.log(pc.cyan("\n⚡️ Deploying to Cloudflare Workers..."))
-	const runCommand = getRunCommand(packageManager)
+	const runCommand = getRunCommand(packageManager)(targetDir)
 	execSync(`${runCommand} deploy`, {
-		cwd: targetDir,
 		stdio: "inherit"
 	})
 }
@@ -343,9 +365,8 @@ async function cloneExistingServer(
 
 	// Deploy the worker
 	console.log(pc.cyan("\n⚡️ Deploying to Cloudflare Workers..."))
-	const runCommand = getRunCommand(packageManager)
+	const runCommand = getRunCommand(packageManager)(targetDir)
 	execSync(`${runCommand} deploy`, {
-		cwd: targetDir,
 		stdio: "inherit"
 	})
 
@@ -377,17 +398,6 @@ async function cloneExistingServer(
 	].join(" ")
 
 	return mcpCommand
-}
-
-// Define a function to get the package manager run command
-function getRunCommand(packageManager: PackageManager) {
-	return packageManager === "npm"
-		? "npm run"
-		: packageManager === "yarn"
-			? "yarn"
-			: packageManager === "pnpm"
-				? "pnpm"
-				: "bun run"
 }
 
 async function main() {
