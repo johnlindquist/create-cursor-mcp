@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/johnlindquist/create-cursor-mcp/compare/v1.0.0...v1.0.1) (2025-03-19)
+
+
+### Bug Fixes
+
+* update README to remove Claude Desktop references and improve accuracy ([abbef12](https://github.com/johnlindquist/create-cursor-mcp/commit/abbef12e96666b05980521ec084dcd4fbce6132e))
+
 # 1.0.0 (2025-03-19)
 
 

@@ -1,6 +1,6 @@
 {
 	"name": "create-cursor-mcp",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"type": "module",
 	"description": "CLI tool to quickly scaffold new MCP servers for Cursor AI",
 	"author": "zue",
