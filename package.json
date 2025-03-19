@@ -46,11 +46,11 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
-		"@cloudflare/workers-types": "^4.20250109.0",
+		"@cloudflare/workers-types": "^4.20250317.0",
 		"@types/npm-which": "^3.0.3",
 		"@types/prompts": "^2.4.9",
 		"@types/yargs": "^17.0.32",
 		"bun-types": "latest",
-		"wrangler": "^3.101.0"
+		"wrangler": "^4.1.0"
 	}
 }
