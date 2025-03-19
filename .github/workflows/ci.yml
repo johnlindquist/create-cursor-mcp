@@ -39,5 +39,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
       - name: Run checks
         run: pnpm check 
