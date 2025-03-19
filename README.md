@@ -86,6 +86,27 @@ bun create mcp --clone <github-url>
 
 Contributions and feedback are extremely welcome! Please feel free to submit a Pull Request or open an issue!
 
+### Development Workflow
+
+This project uses semantic versioning and automated releases:
+
+1. Fork and clone the repository
+2. Install dependencies with `pnpm install`
+3. Make your changes
+4. Commit your changes following the [Conventional Commits](https://www.conventionalcommits.org/) format:
+   - `feat: add new feature` (triggers a minor version bump)
+   - `fix: resolve bug issue` (triggers a patch version bump)
+   - `docs: update documentation` (no version bump)
+   - `chore: update dependencies` (no version bump)
+   - `BREAKING CHANGE: completely change API` (triggers a major version bump)
+5. Create a pull request to the `main` branch
+
+When your PR is merged to the main branch, it will automatically:
+1. Run code checks
+2. Determine the next version based on commit messages
+3. Create a release on GitHub with release notes
+4. Publish to npm
+
 ## Acknowledgements
 
 This project would not be possible without [workers-mcp](https://github.com/cloudflare/workers-mcp) made by [@geelen](https://github.com/geelen)

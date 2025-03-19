@@ -6,7 +6,9 @@
 			"public/**/*",
 			"**/*.css",
 			".wrangler/**/*",
-			"drizzle/**/*"
+			"drizzle/**/*",
+			"tmp/**/*",
+			"tmp2/**/*"
 		]
 	},
 	"linter": {
@@ -19,7 +21,9 @@
 			"**/*.css",
 			".wrangler/**/*",
 			"node_modules/**/*",
-			"drizzle/**/*"
+			"drizzle/**/*",
+			"tmp/**/*",
+			"tmp2/**/*"
 		]
 	},
 	"formatter": {

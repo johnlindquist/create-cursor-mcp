@@ -33,5 +33,11 @@ lerna-debug.log*
 .DS_Store
 
 tmp/
+tmp2/
 
 .wrangler/
+
+# semantic-release
+node_modules
+npm-debug.log
+package-lock.json

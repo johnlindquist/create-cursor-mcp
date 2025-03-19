@@ -1,0 +1,14 @@
+.github/
+.husky/
+.cursor/
+.git/
+node_modules/
+docs/
+tmp/
+tmp2/
+.gitignore
+.releaserc.json
+commitlint.config.js
+biome.json
+bun.lock
+CHANGELOG.md 
