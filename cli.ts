@@ -237,13 +237,14 @@ function setupDependencies(targetDir: string, packageManager: PackageManager) {
 
 // Define a function to get the package manager run command
 function getRunCommand(packageManager: PackageManager) {
-	const baseCommand = packageManager === "npm"
-		? "npm run"
-		: packageManager === "yarn"
-			? "yarn"
-			: packageManager === "pnpm"
-				? "pnpm"
-				: "bun run"
+	const baseCommand =
+		packageManager === "npm"
+			? "npm run"
+			: packageManager === "yarn"
+				? "yarn"
+				: packageManager === "pnpm"
+					? "pnpm run"
+					: "bun run"
 
 	return (targetDir: string) => `cd ${targetDir} && ${baseCommand}`
 }
