@@ -11,4 +11,8 @@ tmp2/
 commitlint.config.js
 biome.json
 bun.lock
-CHANGELOG.md 
+CHANGELOG.md
+template/node_modules/
+template/.git/
+template/.cursor/
+template/.gitignore 
