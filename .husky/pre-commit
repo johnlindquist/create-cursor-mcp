@@ -1,2 +1,2 @@
-pnpm check
+pnpm check --unsafe
 pnpm test

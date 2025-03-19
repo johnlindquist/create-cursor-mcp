@@ -99,12 +99,16 @@ async function getProjectDetails() {
 	}
 
 	// Check for preferred package manager from environment variable
-	const preferredPm = process.env.PREFERRED_PM as PackageManager | undefined;
-	let packageManager: PackageManager;
+	const preferredPm = process.env.PREFERRED_PM as PackageManager | undefined
+	let packageManager: PackageManager
 
 	if (preferredPm && Object.keys(PACKAGE_MANAGERS).includes(preferredPm)) {
-		packageManager = preferredPm;
-		console.log(pc.cyan(`Using package manager: ${packageManager} (from environment)`));
+		packageManager = preferredPm
+		console.log(
+			pc.cyan(
+				`Using package manager: ${packageManager} (from environment)`
+			)
+		)
 	} else {
 		// Ask for package manager preference
 		const response = await prompts({
@@ -119,7 +123,7 @@ async function getProjectDetails() {
 			]
 		})
 
-		packageManager = response.packageManager;
+		packageManager = response.packageManager
 
 		if (!packageManager) {
 			console.error(pc.red("Package manager selection is required"))
@@ -184,7 +188,11 @@ function setupDependencies(targetDir: string, packageManager: PackageManager) {
 	})
 }
 
-function setupMCPAndWorkers(targetDir: string, packageManager: PackageManager, skipDeploy: boolean) {
+function setupMCPAndWorkers(
+	targetDir: string,
+	packageManager: PackageManager,
+	skipDeploy: boolean
+) {
 	console.log(
 		pc.cyan("\n⚡️ Setting up MCP and deploying to Cloudflare Workers...")
 	)
@@ -204,8 +212,12 @@ function setupMCPAndWorkers(targetDir: string, packageManager: PackageManager, s
 	})
 
 	if (skipDeploy) {
-		console.log(pc.yellow("\n⚠️ Skipping deployment (--skip-deploy flag or SKIP_DEPLOY=true was set)"));
-		return `${setupCommand} workers-mcp run ${targetDir} http://localhost:8787 ${targetDir}`;
+		console.log(
+			pc.yellow(
+				"\n⚠️ Skipping deployment (--skip-deploy flag or SKIP_DEPLOY=true was set)"
+			)
+		)
+		return `${setupCommand} workers-mcp run ${targetDir} http://localhost:8787 ${targetDir}`
 	}
 
 	execSync(`${setupCommand} workers-mcp secret upload`, {
@@ -347,8 +359,13 @@ async function main() {
 	console.log(pc.bgCyan(pc.black(" ⚡️ Welcome to create-mcp CLI ")))
 
 	try {
-		const { projectName, packageManager, githubUrl, isCloning, skipDeploy } =
-			await getProjectDetails()
+		const {
+			projectName,
+			packageManager,
+			githubUrl,
+			isCloning,
+			skipDeploy
+		} = await getProjectDetails()
 
 		let mcpCommand: string
 		let targetDir: string
@@ -367,9 +384,13 @@ async function main() {
 
 			if (skipDeploy) {
 				// If skipping deployment, just return a local command
-				mcpCommand = `${npmWhich(targetDir).sync("workers-mcp")} run ${projectName} http://localhost:8787 ${targetDir}`;
+				mcpCommand = `${npmWhich(targetDir).sync("workers-mcp")} run ${projectName} http://localhost:8787 ${targetDir}`
 			} else {
-				setupMCPAndWorkers(targetDir, packageManager as PackageManager, skipDeploy)
+				setupMCPAndWorkers(
+					targetDir,
+					packageManager as PackageManager,
+					skipDeploy
+				)
 				mcpCommand = await getMCPCommand(projectName, targetDir)
 			}
 		}
