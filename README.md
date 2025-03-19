@@ -7,7 +7,6 @@ A CLI tool that sets up a [Model Control Protocol (MCP)](https://modelcontextpro
 ## Prerequisites
 
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed and logged in with your Cloudflare account.
-- Claude Desktop App installed. (This will be removed soon)
 
 ## Instructions
 
@@ -25,8 +24,7 @@ You can also pass a name directly to the command: `bun create mcp --name <server
 - Installs dependencies
 - Initializes a Git repository
 - Deploys a Hello World MCP server to your Cloudflare account
-- Adds it to Claude Desktop
-- Copies the MCP server command to your clipboard so you can paste it into Cursor
+- Prints MCP server command as JSON output
 
 ## How to Use
 
