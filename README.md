@@ -15,10 +15,10 @@ A CLI tool that sets up a [Model Control Protocol (MCP)](https://modelcontextpro
 To scaffold and deploy a new MCP server, just run:
 
 ```bash
-bun create mcp
+npx create-cursor-mcp
 ```
 
-You can also pass a name directly to the command: `bun create mcp --name <server-name>`.
+You can also pass a name directly to the command: `npx create-cursor-mcp --name <server-name>`.
 
 ## Features
 
@@ -61,7 +61,7 @@ sayHello(name: string) {
 1. Redeploy the worker:
 
 ```bash
-bun run deploy
+npm run deploy
 ```
 
 2. Reload your Cursor window.
@@ -86,7 +86,7 @@ All you have to do is write functions. Put your descriptions and params in JSDoc
 You can clone and deploy any MCP server made with create-mcp to your own Cloudflare account:
 
 ```bash
-bun create mcp --clone <github-url>
+npx create-cursor-mcp --clone <github-url>
 ```
 
 ## Contributing

@@ -11,7 +11,7 @@ See [src/index.ts](src/index.ts) for the current list of tools. Every method in 
 1. Run the automated install script to clone this MCP server and deploy it to your Cloudflare account:
 
 ```bash
-bun create mcp --clone https://github.com/your-username/mcp-server-name
+npx create-cursor-mcp --clone https://github.com/your-username/mcp-server-name
 ```
 
 2. Open `Cursor Settings -> MCP -> Add new MCP server` and paste the command that was copied to your clipboard.
@@ -19,7 +19,7 @@ bun create mcp --clone https://github.com/your-username/mcp-server-name
 3. (Optional) Upload any secrets:
 
 ```bash
-bunx wrangler secret put MY_API_KEY
+npx wrangler secret put MY_API_KEY
 ```
 
 ## Deploying Changes
@@ -27,7 +27,7 @@ bunx wrangler secret put MY_API_KEY
 1. Run the deploy script:
 
 ```bash
-bun run deploy
+npm run deploy
 ```
 
 2. Then reload your Cursor window to use the updated tools.

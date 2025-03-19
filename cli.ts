@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { execSync } from "node:child_process"
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
@@ -145,7 +145,7 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 	readmeContent = readmeContent.replace(/^# [^\n]+/, `# ${projectName}`)
 	readmeContent = readmeContent.replace(
 		/bun create mcp --clone https:\/\/github\.com\/[^/]+\/[^/\n]+/,
-		`bun create mcp --clone https://github.com/your-username/${projectName}`
+		`npx create-cursor-mcp --clone https://github.com/your-username/${projectName}`
 	)
 	await writeFile(readmePath, readmeContent)
 }
@@ -186,7 +186,9 @@ function setupMCPAndWorkers(targetDir: string, packageManager: PackageManager) {
 	})
 
 	// Deploy the worker
-	execSync(`${setupCommand} workers-mcp docgen src/index.ts && ${setupCommand} wrangler deploy --minify`, {
+	console.log(pc.cyan("\n⚡️ Deploying to Cloudflare Workers..."))
+	const runCommand = getRunCommand(packageManager)
+	execSync(`${runCommand} deploy`, {
 		cwd: targetDir,
 		stdio: "inherit"
 	})
@@ -269,7 +271,8 @@ async function cloneExistingServer(
 
 	// Deploy the worker
 	console.log(pc.cyan("\n⚡️ Deploying to Cloudflare Workers..."))
-	execSync("bun run deploy", {
+	const runCommand = getRunCommand(packageManager)
+	execSync(`${runCommand} deploy`, {
 		cwd: targetDir,
 		stdio: "inherit"
 	})
@@ -304,6 +307,17 @@ async function cloneExistingServer(
 	return mcpCommand
 }
 
+// Define a function to get the package manager run command
+function getRunCommand(packageManager: PackageManager) {
+	return packageManager === "npm"
+		? "npm run"
+		: packageManager === "yarn"
+			? "yarn"
+			: packageManager === "pnpm"
+				? "pnpm"
+				: "bun run"
+}
+
 async function main() {
 	// Display welcome message
 	console.log("\n")
@@ -333,12 +347,18 @@ async function main() {
 
 		await handleFinalSteps(targetDir, mcpCommand)
 	} catch (error) {
-		console.error(pc.red("Error creating project:"), error instanceof Error ? error.message : error)
+		console.error(
+			pc.red("Error creating project:"),
+			error instanceof Error ? error.message : error
+		)
 		process.exit(1)
 	}
 }
 
 main().catch((error) => {
-	console.error(pc.red("Error:"), error instanceof Error ? error.message : error)
+	console.error(
+		pc.red("Error:"),
+		error instanceof Error ? error.message : error
+	)
 	process.exit(1)
 })

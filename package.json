@@ -10,9 +10,13 @@
 	},
 	"files": ["cli.ts", "template"],
 	"scripts": {
-		"dev": "bun check && wrangler dev",
-		"deploy": "workers-mcp docgen src/index.ts && bun check && wrangler deploy --minify",
-		"check": "bunx biome check --write .",
+		"dev": "run-s check wrangler:dev",
+		"wrangler:dev": "wrangler dev",
+		"deploy": "run-s docgen check wrangler:deploy",
+		"docgen": "workers-mcp docgen src/index.ts",
+		"wrangler:deploy": "wrangler deploy --minify",
+		"check": "biome check --write .",
+		"test": "biome check .",
 		"semantic-release": "semantic-release",
 		"prepare": "husky"
 	},
@@ -35,6 +39,7 @@
 	},
 	"homepage": "https://github.com/johnlindquist/create-cursor-mcp#readme",
 	"dependencies": {
+		"npm-run-all": "^4.1.5",
 		"npm-which": "^3.0.1",
 		"picocolors": "^1.0.0",
 		"prompts": "^2.4.2",
@@ -53,7 +58,6 @@
 		"@types/npm-which": "^3.0.3",
 		"@types/prompts": "^2.4.9",
 		"@types/yargs": "^17.0.32",
-		"bun-types": "latest",
 		"husky": "^9.1.7",
 		"semantic-release": "^24.2.3",
 		"wrangler": "^4.1.0"
