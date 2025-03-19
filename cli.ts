@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process"
+import { existsSync } from "node:fs"
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -8,24 +9,42 @@ import pc from "picocolors"
 import prompts from "prompts"
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
-import { existsSync } from "node:fs"
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url))
 
 // Add template directory resolution
 function getTemplateDir() {
+	console.log(pc.cyan("\n🔍 Looking for template directory..."))
+
 	// Try to find template in the package directory first
 	const packageTemplateDir = join(__dirname, "template")
+	console.log(pc.yellow(`Looking in package directory: ${packageTemplateDir}`))
 	if (existsSync(packageTemplateDir)) {
+		console.log(pc.green(`Found template in package directory!`))
 		return packageTemplateDir
 	}
 
 	// If not found, try to find it in the node_modules directory
 	const nodeModulesTemplateDir = join(__dirname, "..", "..", "template")
+	console.log(pc.yellow(`Looking in node_modules directory: ${nodeModulesTemplateDir}`))
 	if (existsSync(nodeModulesTemplateDir)) {
+		console.log(pc.green(`Found template in node_modules directory!`))
 		return nodeModulesTemplateDir
 	}
 
+	// Try one more location - the package root
+	const packageRootDir = join(__dirname, "..")
+	console.log(pc.yellow(`Looking in package root: ${packageRootDir}`))
+	if (existsSync(join(packageRootDir, "template"))) {
+		console.log(pc.green(`Found template in package root!`))
+		return join(packageRootDir, "template")
+	}
+
+	console.log(pc.red("\n❌ Template directory not found in any of the expected locations:"))
+	console.log(pc.red(`1. ${packageTemplateDir}`))
+	console.log(pc.red(`2. ${nodeModulesTemplateDir}`))
+	console.log(pc.red(`3. ${join(packageRootDir, "template")}`))
+	console.log(pc.red("\nCurrent __dirname:", __dirname))
 	throw new Error("Template directory not found")
 }
 
