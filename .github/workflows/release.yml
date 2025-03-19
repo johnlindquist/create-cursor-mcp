@@ -9,6 +9,9 @@ permissions:
   issues: write
   pull-requests: write
 
+env:
+  HUSKY: 0
+
 jobs:
   release:
     name: Release
@@ -61,12 +64,8 @@ jobs:
           git config --global user.email 'github-actions@github.com'
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
 
-      - name: Disable Husky
-        run: npx husky set .husky/pre-commit ""
-
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          HUSKY: 0
         run: pnpm semantic-release 
