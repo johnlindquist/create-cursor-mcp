@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/johnlindquist/create-cursor-mcp/compare/v1.0.1...v1.1.0) (2025-03-19)
+
+
+### Features
+
+* add features section to README ([57bae39](https://github.com/johnlindquist/create-cursor-mcp/commit/57bae397a485141ba7f00fca1d314c08b2bc66e4))
+
 ## [1.0.1](https://github.com/johnlindquist/create-cursor-mcp/compare/v1.0.0...v1.0.1) (2025-03-19)
 
 
