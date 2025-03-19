@@ -20,7 +20,7 @@ function getTemplateDir() {
 	const packageTemplateDir = join(__dirname, "template")
 	console.log(pc.yellow(`Looking in package directory: ${packageTemplateDir}`))
 	if (existsSync(packageTemplateDir)) {
-		console.log(pc.green(`Found template in package directory!`))
+		console.log(pc.green("Found template in package directory!"))
 		return packageTemplateDir
 	}
 
@@ -28,7 +28,7 @@ function getTemplateDir() {
 	const nodeModulesTemplateDir = join(__dirname, "..", "..", "template")
 	console.log(pc.yellow(`Looking in node_modules directory: ${nodeModulesTemplateDir}`))
 	if (existsSync(nodeModulesTemplateDir)) {
-		console.log(pc.green(`Found template in node_modules directory!`))
+		console.log(pc.green("Found template in node_modules directory!"))
 		return nodeModulesTemplateDir
 	}
 
@@ -36,7 +36,7 @@ function getTemplateDir() {
 	const packageRootDir = join(__dirname, "..")
 	console.log(pc.yellow(`Looking in package root: ${packageRootDir}`))
 	if (existsSync(join(packageRootDir, "template"))) {
-		console.log(pc.green(`Found template in package root!`))
+		console.log(pc.green("Found template in package root!"))
 		return join(packageRootDir, "template")
 	}
 
@@ -44,7 +44,7 @@ function getTemplateDir() {
 	console.log(pc.red(`1. ${packageTemplateDir}`))
 	console.log(pc.red(`2. ${nodeModulesTemplateDir}`))
 	console.log(pc.red(`3. ${join(packageRootDir, "template")}`))
-	console.log(pc.red("\nCurrent __dirname:", __dirname))
+	console.log(pc.red(`\nCurrent __dirname: ${__dirname}`))
 	throw new Error("Template directory not found")
 }
 
