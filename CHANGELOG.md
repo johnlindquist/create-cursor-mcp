@@ -1,3 +1,11 @@
+## [1.1.2](https://github.com/johnlindquist/create-cursor-mcp/compare/v1.1.1...v1.1.2) (2025-03-19)
+
+
+### Bug Fixes
+
+* **ts:** build and run ([d1e3a68](https://github.com/johnlindquist/create-cursor-mcp/commit/d1e3a68576625c1dd77cdd6f8c14da4614e1990b))
+* **ts:** build and run ([c2a4831](https://github.com/johnlindquist/create-cursor-mcp/commit/c2a4831a1c025d2b1848a9dc2ed81be9ce851547))
+
 ## [1.1.1](https://github.com/johnlindquist/create-cursor-mcp/compare/v1.1.0...v1.1.1) (2025-03-19)
 
 
