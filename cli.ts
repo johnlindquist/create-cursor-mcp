@@ -175,7 +175,18 @@ function setupMCPAndWorkers(targetDir: string, packageManager: PackageManager) {
 					? "pnpm dlx"
 					: "bunx"
 
-	execSync(`${setupCommand} workers-mcp setup`, {
+	// Generate and upload secret
+	execSync(`${setupCommand} workers-mcp secret generate`, {
+		cwd: targetDir,
+		stdio: "inherit"
+	})
+	execSync(`${setupCommand} workers-mcp secret upload`, {
+		cwd: targetDir,
+		stdio: "inherit"
+	})
+
+	// Deploy the worker
+	execSync(`${setupCommand} workers-mcp docgen src/index.ts && ${setupCommand} wrangler deploy --minify`, {
 		cwd: targetDir,
 		stdio: "inherit"
 	})
