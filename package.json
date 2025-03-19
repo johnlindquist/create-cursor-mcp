@@ -8,10 +8,7 @@
 	"bin": {
 		"create-cursor-mcp": "./dist/cli.js"
 	},
-	"files": [
-		"dist",
-		"template"
-	],
+	"files": ["dist", "template"],
 	"scripts": {
 		"build": "tsc",
 		"dev": "run-s check wrangler:dev",
@@ -22,8 +19,10 @@
 		"check": "biome check --write .",
 		"test": "biome check .",
 		"test-template": "tsx scripts/test-template.ts",
+		"test-create": "run-s build && NODE_OPTIONS='--import tsx' node cli.ts",
 		"semantic-release": "semantic-release",
-		"prepare": "husky"
+		"prepare": "husky",
+		"prepublishOnly": "pnpm run build"
 	},
 	"keywords": [
 		"mcp",

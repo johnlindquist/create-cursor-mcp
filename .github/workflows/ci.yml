@@ -44,5 +44,8 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Set development version
+        run: pnpm version development-0.0.0 --no-git-tag-version
+
       - name: Run checks
         run: pnpm check 
