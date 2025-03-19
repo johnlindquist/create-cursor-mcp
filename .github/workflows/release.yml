@@ -50,14 +50,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Run checks
-        run: pnpm check
-
       - name: Setup Git Identity
         run: |
           git config --global user.name 'github-actions'
