@@ -310,9 +310,16 @@ async function handleFinalSteps(
 	mcpCommand: string,
 	projectName: string
 ) {
-	// Output the full MCP server object as JSON
+	// Create the MCP server object
+	const mcpServer = {
+		name: projectName,
+		command: mcpCommand,
+		args: [projectName, `https://${projectName}.workers.dev`, targetDir]
+	}
+
+	// Output the MCP server object as JSON
 	console.log("\n")
-	console.log(JSON.stringify({ command: mcpCommand }, null, 2))
+	console.log(JSON.stringify(mcpServer, null, 2))
 	console.log("\n")
 	console.log(pc.green("\n✨ MCP server created successfully!"))
 	console.log(pc.cyan("Happy hacking! 🚀\n"))
