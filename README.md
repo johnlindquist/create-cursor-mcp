@@ -1,5 +1,7 @@
 # create-mcp
 
+> Forked from https://github.com/zueai/create-mcp
+
 A CLI tool that sets up a [Model Control Protocol (MCP)](https://modelcontextprotocol.io) server and deploys it to Cloudflare Workers so you can start making new tools for your Cursor Agent in minutes.
 
 > Just write TypeScript functions with JSDoc comments to give your agent MCP tools.
