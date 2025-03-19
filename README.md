@@ -18,6 +18,13 @@ bun create mcp
 
 You can also pass a name directly to the command: `bun create mcp --name <server-name>`.
 
+## Features
+
+- **Automatic Semantic Versioning**: Versions are automatically determined by commit messages following the [Conventional Commits](https://www.conventionalcommits.org/) format.
+- **GitHub Actions CI/CD**: Automatic testing, version bumping, and npm publishing when changes are pushed to the main branch.
+- **TypeScript**: First-class TypeScript support for MCP functions.
+- **Cloudflare Workers Integration**: Deploy directly to Cloudflare Workers for globally distributed MCP tools.
+
 ## What this CLI does
 
 - Clones the template worker repository into `<current-dir>/<server-name>`
