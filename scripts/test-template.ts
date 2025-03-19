@@ -34,19 +34,16 @@ try {
 	console.log(pc.cyan(`⚡️ Running CLI to create project: ${projectName}`))
 
 	// Use the --skip-deploy flag to avoid actual deployment
-	const cli = execSync(
-		`tsx ${cliPath} --name ${projectName} --skip-deploy`,
-		{
-			stdio: "inherit",
-			env: {
-				...process.env,
-				// Set non-interactive mode for CI environments
-				CI: "true",
-				// Choose pnpm as the package manager
-				PREFERRED_PM: "pnpm"
-			}
+	const cli = execSync(`tsx ${cliPath} --name ${projectName} --skip-deploy`, {
+		stdio: "inherit",
+		env: {
+			...process.env,
+			// Set non-interactive mode for CI environments
+			CI: "true",
+			// Choose pnpm as the package manager
+			PREFERRED_PM: "pnpm"
 		}
-	)
+	})
 
 	// Check that the output directory was created
 	const projectPath = join(tmpDir.name, projectName)
