@@ -1,5 +1,4 @@
 {
-	"name": "mcp-server-name",
 	"scripts": {
 		"dev": "bun check && wrangler dev",
 		"deploy": "workers-mcp docgen src/index.ts && bun check && wrangler deploy --minify",

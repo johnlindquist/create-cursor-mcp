@@ -1,12 +1,12 @@
 {
-	"name": "create-mcp",
-	"version": "0.4.17",
+	"name": "create-cursor-mcp",
+	"version": "1.0.0",
 	"type": "module",
-	"description": "CLI tool to quickly scaffold new MCP servers",
+	"description": "CLI tool to quickly scaffold new MCP servers for Cursor AI",
 	"author": "zue",
 	"license": "MIT",
 	"bin": {
-		"create-mcp": "./cli.ts"
+		"create-cursor-mcp": "./cli.ts"
 	},
 	"files": [
 		"cli.ts",
@@ -21,7 +21,9 @@
 	},
 	"keywords": [
 		"mcp",
-		"create-mcp",
+		"cursor",
+		"cursor-ai",
+		"create-cursor-mcp",
 		"scaffold",
 		"cli",
 		"cloudflare",
@@ -29,12 +31,12 @@
 	],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/zueai/create-mcp"
+		"url": "https://github.com/johnlindquist/create-cursor-mcp"
 	},
 	"bugs": {
-		"url": "https://github.com/zueai/create-mcp/issues"
+		"url": "https://github.com/johnlindquist/create-cursor-mcp/issues"
 	},
-	"homepage": "https://github.com/zueai/create-mcp#readme",
+	"homepage": "https://github.com/johnlindquist/create-cursor-mcp#readme",
 	"dependencies": {
 		"npm-which": "^3.0.1",
 		"picocolors": "^1.0.0",
