@@ -8,8 +8,26 @@ import pc from "picocolors"
 import prompts from "prompts"
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
+import { existsSync } from "node:fs"
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url))
+
+// Add template directory resolution
+function getTemplateDir() {
+	// Try to find template in the package directory first
+	const packageTemplateDir = join(__dirname, "template")
+	if (existsSync(packageTemplateDir)) {
+		return packageTemplateDir
+	}
+
+	// If not found, try to find it in the node_modules directory
+	const nodeModulesTemplateDir = join(__dirname, "..", "..", "template")
+	if (existsSync(nodeModulesTemplateDir)) {
+		return nodeModulesTemplateDir
+	}
+
+	throw new Error("Template directory not found")
+}
 
 const PACKAGE_MANAGERS = {
 	bun: "bun install",
@@ -136,7 +154,7 @@ async function getProjectDetails() {
 
 async function setupProjectFiles(projectName: string) {
 	const targetDir = join(process.cwd(), projectName)
-	const templateDir = join(__dirname, "template")
+	const templateDir = getTemplateDir()
 
 	// Create project directory
 	await mkdir(targetDir, { recursive: true })
