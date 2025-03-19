@@ -201,6 +201,28 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 	const pkgPath = join(targetDir, "package.json")
 	const pkg = JSON.parse(await readFile(pkgPath, "utf-8"))
 	pkg.name = projectName
+
+	// Add docgen script to the scripts section if it doesn't exist
+	if (!pkg.scripts.docgen) {
+		pkg.scripts.docgen = "workers-mcp docgen src/api/index.ts"
+
+		// Update deploy script to run docgen before deployment if needed
+		if (pkg.scripts.deploy && !pkg.scripts.deploy.includes("docgen")) {
+			if (pkg.scripts.deploy.includes("run-s")) {
+				// If using run-s, add docgen to the list
+				pkg.scripts.deploy = pkg.scripts.deploy.replace("run-s", "run-s docgen")
+			} else {
+				// Otherwise wrap with run-s
+				pkg.scripts.deploy = `run-s docgen ${pkg.scripts.deploy}`
+
+				// Add npm-run-all as a dev dependency if it's not already there
+				if (!pkg.devDependencies["npm-run-all"]) {
+					pkg.devDependencies["npm-run-all"] = "^4.1.5"
+				}
+			}
+		}
+	}
+
 	await writeFile(pkgPath, JSON.stringify(pkg, null, 2))
 
 	// Update wrangler.jsonc with new name
@@ -220,6 +242,36 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 		/bun create mcp --clone https:\/\/github\.com\/[^/]+\/[^/\n]+/,
 		`npx create-cursor-mcp --clone https://github.com/your-username/${projectName}`
 	)
+
+	// Add documentation generation info if not already present
+	if (!readmeContent.includes("## Documentation Generation")) {
+		readmeContent += `
+## Documentation Generation
+
+This project automatically generates documentation for your MCP tools using JSDoc comments. When you run the deploy script, it will:
+
+1. Generate documentation from your JSDoc comments using \`workers-mcp docgen\`
+2. Output the documentation to \`dist/docs.json\`
+3. Deploy your worker with the documentation included
+
+This enables tools like Cursor AI to understand and properly use your MCP tools.
+
+Example JSDoc format for MCP tools:
+
+\`\`\`typescript
+/**
+ * Adds two numbers together
+ * @param a {number} First number to add
+ * @param b {number} Second number to add
+ * @returns {number} The sum of the two numbers
+ */
+add(a: number, b: number) {
+  return a + b;
+}
+\`\`\`
+`
+	}
+
 	await writeFile(readmePath, readmeContent)
 }
 
@@ -266,6 +318,14 @@ async function setupMCPAndWorkers(
 					? "pnpm dlx"
 					: "bunx"
 
+	// Generate documentation first
+	console.log(pc.cyan("\n⚡️ Generating API documentation..."))
+	const runCommand = getRunCommand(packageManager)(targetDir)
+	execSync(`${runCommand} docgen`, {
+		cwd: targetDir,
+		stdio: "inherit"
+	})
+
 	// Generate and upload secret
 	execSync(`${setupCommand} workers-mcp secret generate`, {
 		cwd: targetDir,
@@ -288,7 +348,6 @@ async function setupMCPAndWorkers(
 
 	// Deploy the worker
 	console.log(pc.cyan("\n⚡️ Deploying to Cloudflare Workers..."))
-	const runCommand = getRunCommand(packageManager)(targetDir)
 	execSync(`${runCommand} deploy`, {
 		stdio: "inherit"
 	})
@@ -371,9 +430,16 @@ async function cloneExistingServer(
 		stdio: "inherit"
 	})
 
+	// Generate documentation before deployment
+	console.log(pc.cyan("\n⚡️ Generating API documentation..."))
+	const runCommand = getRunCommand(packageManager)(targetDir)
+	execSync(`${runCommand} docgen`, {
+		cwd: targetDir,
+		stdio: "inherit"
+	})
+
 	// Deploy the worker
 	console.log(pc.cyan("\n⚡️ Deploying to Cloudflare Workers..."))
-	const runCommand = getRunCommand(packageManager)(targetDir)
 	execSync(`${runCommand} deploy`, {
 		stdio: "inherit"
 	})
@@ -440,6 +506,25 @@ async function main() {
 			if (skipDeploy) {
 				// If skipping deployment, just return a local command
 				mcpCommand = `${npmWhich(targetDir).sync("workers-mcp")} run ${projectName} http://localhost:8787 ${targetDir}`
+
+				// Let user know about documentation generation
+				console.log(
+					pc.yellow(
+						"\n⚠️ Documentation generation has been configured but not run yet."
+					)
+				)
+				console.log(
+					pc.yellow(
+						`You can generate docs manually by running "${packageManager === "npm"
+							? "npm run"
+							: packageManager === "yarn"
+								? "yarn"
+								: packageManager === "pnpm"
+									? "pnpm run"
+									: "bun run"
+						} docgen" when you're ready to deploy.`
+					)
+				)
 			} else {
 				setupMCPAndWorkers(
 					targetDir,
