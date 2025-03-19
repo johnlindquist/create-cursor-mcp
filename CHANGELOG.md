@@ -1,3 +1,11 @@
+## [1.1.1](https://github.com/johnlindquist/create-cursor-mcp/compare/v1.1.0...v1.1.1) (2025-03-19)
+
+
+### Bug Fixes
+
+* **template:** updating template ([9f2e26b](https://github.com/johnlindquist/create-cursor-mcp/commit/9f2e26b7d187ce6b85215235fb572de5f3ea072c))
+* **template:** updating template ([fd25229](https://github.com/johnlindquist/create-cursor-mcp/commit/fd25229245ba8853826d9223082dee4eccb616d0))
+
 # [1.1.0](https://github.com/johnlindquist/create-cursor-mcp/compare/v1.0.1...v1.1.0) (2025-03-19)
 
 
