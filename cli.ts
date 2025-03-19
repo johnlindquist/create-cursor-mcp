@@ -208,17 +208,24 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 
 		// Update deploy script to run docgen before deployment if needed
 		if (pkg.scripts.deploy && !pkg.scripts.deploy.includes("docgen")) {
-			if (pkg.scripts.deploy.includes("run-s")) {
+			// Check if npm-run-all is in devDependencies
+			const hasRunAll = pkg.devDependencies && pkg.devDependencies["npm-run-all"];
+
+			if (hasRunAll && pkg.scripts.deploy.includes("run-s")) {
 				// If using run-s, add docgen to the list
 				pkg.scripts.deploy = pkg.scripts.deploy.replace("run-s", "run-s docgen")
-			} else {
-				// Otherwise wrap with run-s
+			} else if (hasRunAll) {
+				// Add run-s if npm-run-all exists but not using run-s yet
 				pkg.scripts.deploy = `run-s docgen ${pkg.scripts.deploy}`
+			} else {
+				// Since run-s isn't available, prepend the docgen script directly
+				pkg.scripts.deploy = `npm run docgen && ${pkg.scripts.deploy}`
 
-				// Add npm-run-all as a dev dependency if it's not already there
-				if (!pkg.devDependencies["npm-run-all"]) {
-					pkg.devDependencies["npm-run-all"] = "^4.1.5"
+				// Add npm-run-all as a dev dependency for future use
+				if (!pkg.devDependencies) {
+					pkg.devDependencies = {};
 				}
+				pkg.devDependencies["npm-run-all"] = "^4.1.5"
 			}
 		}
 	}
