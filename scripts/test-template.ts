@@ -35,7 +35,7 @@ try {
 
 	// Use the --skip-deploy flag to avoid actual deployment
 	const cli = execSync(
-		`node ${cliPath} --name ${projectName} --skip-deploy`,
+		`tsx ${cliPath} --name ${projectName} --skip-deploy`,
 		{
 			stdio: "inherit",
 			env: {

@@ -6,13 +6,11 @@
 	"author": "johnlindquist",
 	"license": "MIT",
 	"bin": {
-		"create-cursor-mcp": "./cli.ts"
+		"create-cursor-mcp": "./dist/cli.js"
 	},
-	"files": [
-		"cli.ts",
-		"template"
-	],
+	"files": ["dist", "template"],
 	"scripts": {
+		"build": "tsc",
 		"dev": "run-s check wrangler:dev",
 		"wrangler:dev": "wrangler dev",
 		"deploy": "run-s docgen check wrangler:deploy",
@@ -61,6 +59,7 @@
 		"@semantic-release/git": "^10.0.1",
 		"@semantic-release/github": "^11.0.1",
 		"@semantic-release/npm": "^12.0.1",
+		"@types/node": "^22.13.10",
 		"@types/npm-which": "^3.0.3",
 		"@types/prompts": "^2.4.9",
 		"@types/tmp": "^0.2.6",
@@ -69,6 +68,7 @@
 		"semantic-release": "^24.2.3",
 		"tmp": "^0.2.3",
 		"tsx": "^4.7.1",
+		"typescript": "^5.8.2",
 		"wrangler": "^4.2.0"
 	}
 }
