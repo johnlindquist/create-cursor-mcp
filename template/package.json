@@ -58,6 +58,7 @@
 		"types": "wrangler types",
 		"docgen-acorn": "tsx scripts/docgen-acorn.ts src/api/index.ts",
 		"print-mcp-json": "tsx scripts/print-mcp-json.ts",
+		"discover": "tsx scripts/discover.ts",
 		"test": "vitest run"
 	},
 	"type": "module",
