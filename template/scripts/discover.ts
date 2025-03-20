@@ -147,7 +147,7 @@ async function discoverTools(workerUrl: string): Promise<void> {
 }
 
 // If run directly from the command line
-if (require.main === module) {
+if (import.meta.url === import.meta.resolve(process.argv[1])) {
 	const workerUrl = process.argv[2]
 	if (!workerUrl) {
 		console.error("Usage: pnpm tsx scripts/discover.ts <worker-url>")
