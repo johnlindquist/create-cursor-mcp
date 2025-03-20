@@ -5,54 +5,47 @@ import { parse } from "acorn"
 import * as walk from "acorn-walk"
 import type { EntrypointDoc, MethodDoc, Param, Returns } from "./docgen-types"
 
-// Define explicit Node type to avoid 'any' usage
+// Define a more complete type for AST nodes
 interface ASTNode {
 	type: string
 	callee?: {
 		type: string
 		object?: {
 			type: string
-			object?: {
-				type: string
-			}
-			property?: {
-				name?: string
-			}
+			name?: string
 		}
 		property?: {
 			name?: string
+			type?: string
 		}
 	}
-	arguments?: unknown[]
-	value?: unknown
 	start?: number
 	end?: number
+	name?: string
+	value?: unknown
+	properties?: Array<{
+		type: string
+		key: { name: string; type: string }
+		value: unknown
+	}>
+}
+
+interface Property {
+	type: string
+	key: { name: string; type: string }
+	value: {
+		type: string
+		object?: Record<string, unknown>
+		property?: Record<string, unknown>
+		callee?: Record<string, unknown>
+	}
+	optional?: boolean
 }
 
 /**
- * A naive parser to find something like "a: z.number(), b: z.number()" within a string.
+ * Generate docs by first extracting tool sections with regex, then
+ * using AST parsing on each schema object.
  */
-function parseZodSchema(schemaText: string): Param[] {
-	console.log(`[parseZodSchema] Parsing schema text: ${schemaText}`)
-	const regex = /(\w+)\s*:\s*z\.(\w+)\(\)/g
-	const params: Param[] = []
-	let match: RegExpExecArray | null
-
-	// Use a different approach to avoid assignment in expression
-	match = regex.exec(schemaText)
-	while (match !== null) {
-		console.log(`Found param: ${match[1]} of type ${match[2]}`)
-		params.push({
-			name: match[1],
-			type: match[2]
-		})
-		match = regex.exec(schemaText)
-	}
-
-	console.log(`[parseZodSchema] Found ${params.length} params`)
-	return params
-}
-
 async function generateDocs(inputFilePath?: string): Promise<void> {
 	const filePath =
 		inputFilePath ?? path.join(process.cwd(), "src", "api", "index.ts")
@@ -65,108 +58,25 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
 		`Original code sample (first 200 chars):\n${code.substring(0, 200)}...`
 	)
 
-	// Preprocess TypeScript to JavaScript for parsing
-	// Remove type definitions, interfaces, etc.
-	const jsCode = code
-		.replace(/export\s+interface\s+\w+\s*\{[^}]*\}/g, "")
-		.replace(/:\s*\w+(\[\])?/g, "")
-		.replace(/<[^>]*>/g, "")
-		.replace(/implements\s+\w+/g, "")
-		.replace(/extends\s+\w+(<[^>]*>)?/g, "")
-		.replace(/satisfies\s+\w+(<[^>]*>)?/g, "")
+	// First extract all tool segments from the code
+	const toolSegments = extractToolSegments(code)
+	console.log(`Found ${toolSegments.length} tool segments in code`)
 
-	console.log(`Preprocessed code length: ${jsCode.length} characters`)
-	console.log(
-		`Preprocessed code sample (first 200 chars):\n${jsCode.substring(0, 200)}...`
-	)
+	// Process each segment to get tool information
+	const tools: MethodDoc[] = []
 
-	// Save the preprocessed code to a temporary file for inspection
-	const tempJsPath = path.join(process.cwd(), "temp-preprocessed.js")
-	fs.writeFileSync(tempJsPath, jsCode)
-	console.log(`Saved preprocessed code to ${tempJsPath} for debugging`)
-
-	try {
-		console.log("Attempting to parse with acorn...")
-		// Parse the code to an AST with basic acorn
-		const ast = parse(jsCode, {
-			ecmaVersion: 2022,
-			sourceType: "module",
-			locations: true,
-			allowAwaitOutsideFunction: true,
-			allowImportExportEverywhere: true
-		})
-		console.log("Parsing successful!")
-
-		// We'll store discovered tools in an array
-		const tools: MethodDoc[] = []
-		console.log("Starting AST walk to find tool definitions...")
-
-		// Walk the AST, looking for CallExpressions
-		try {
-			walk.simple(ast, {
-				CallExpression(node: ASTNode) {
-					console.log(
-						`[AST] Found CallExpression: ${jsCode.substring(node.start || 0, node.end || 0).slice(0, 50)}...`
-					)
-					// We're looking for something like `this.server.tool(...)`
-					if (
-						node.callee &&
-						node.callee.type === "MemberExpression" &&
-						node.callee.object?.type === "MemberExpression" &&
-						node.callee.object.object?.type === "ThisExpression" &&
-						node.callee.object.property?.name === "server" &&
-						node.callee.property?.name === "tool"
-					) {
-						console.log("Found a tool call!")
-
-						// Process the tool call
-						const args = node.arguments
-						if (!args || args.length < 3) {
-							console.log("Not enough arguments, skipping")
-							return
-						}
-
-						const toolNameNode = args[0] as ASTNode
-						const zodSchemaNode = args[1] as ASTNode
-
-						// Extract tool name
-						let toolName = "unknownTool"
-						if (
-							toolNameNode.type === "Literal" &&
-							typeof toolNameNode.value === "string"
-						) {
-							toolName = toolNameNode.value
-							console.log(`Tool name: ${toolName}`)
-						}
-
-						// Parse Zod schema from the original code
-						const start = zodSchemaNode.start ?? 0
-						const end = zodSchemaNode.end ?? 0
-						const zodSchemaText = code.substring(start, end)
-						console.log(`Schema text: ${zodSchemaText}`)
-
-						const params: Param[] = parseZodSchema(zodSchemaText)
-						console.log(`Params found: ${params.length}`)
-
-						const returns: Returns = {
-							type: "string",
-							description: `Result from tool "${toolName}"`
-						}
-
-						// Add the found tool to the array
-						tools.push({
-							name: toolName,
-							description: `Auto-generated docs for "${toolName}"`,
-							params,
-							returns
-						})
-					}
-				}
-			})
-			console.log("AST walk completed successfully")
-		} catch (walkError) {
-			console.error("Error during AST walk:", walkError)
+	for (const segment of toolSegments) {
+		const tool = extractToolInfo(segment)
+		if (tool) {
+			tools.push(tool)
 		}
+	}
+
+	// Output docs
+	if (tools.length > 0) {
+		console.log(
+			`Successfully processed ${tools.length} tools using AST approach`
+		)
 
 		// Output docs to dist/docs.json
 		const docsJson: Record<string, EntrypointDoc> = {
@@ -182,9 +92,7 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
 		fs.mkdirSync(distDir, { recursive: true })
 		const docsPath = path.join(distDir, "docs.json")
 		fs.writeFileSync(docsPath, JSON.stringify(docsJson, null, 2))
-		console.log(
-			`Wrote docs.json with ${tools.length} tools discovered to ${docsPath}`
-		)
+		console.log(`Wrote docs.json with ${tools.length} tools to ${docsPath}`)
 
 		// Print a summary of discovered tools
 		console.log("\nDiscovered tools:")
@@ -200,92 +108,213 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
 			console.log(`  - Returns: ${tool.returns?.type || "void"}`)
 			console.log("")
 		}
-	} catch (error) {
-		console.error("Error parsing JavaScript:", error)
-		console.error(
-			"Error location details:",
-			(error as Error & { loc?: unknown }).loc
-		)
-
-		// Try to show the problematic code around the error location
-		if ((error as Error & { pos?: number }).pos) {
-			const pos = (error as Error & { pos?: number }).pos
-			const errorContext = jsCode.substring(
-				Math.max(0, pos - 100),
-				Math.min(jsCode.length, pos + 100)
-			)
-			console.error(
-				`Code around error position (pos ${pos}):\n${errorContext}`
-			)
-
-			// Mark the exact error position with a ^
-			const lineBeforeError =
-				jsCode.substring(0, pos).split("\n").pop() || ""
-			console.error(`${"^".padStart(lineBeforeError.length + 1)}`)
-		}
-
-		// Fall back to regex-based approach
-		console.log("Falling back to regex-based extraction...")
-		const tools = extractToolsWithRegex(code)
-
-		// Output docs from regex approach
-		const docsJson: Record<string, EntrypointDoc> = {
-			MCPMathServer: {
-				exported_as: "MCPMathServer",
-				description:
-					"Detected tools from this.server.tool(...) calls using regex fallback",
-				methods: tools,
-				statics: {}
-			}
-		}
-
-		const distDir = path.join(process.cwd(), "dist")
-		fs.mkdirSync(distDir, { recursive: true })
-		const docsPath = path.join(distDir, "docs.json")
-		fs.writeFileSync(docsPath, JSON.stringify(docsJson, null, 2))
-		console.log(
-			`Wrote docs.json with ${tools.length} tools discovered using regex fallback`
-		)
+	} else {
+		console.error("No tools found in the source code.")
 	}
 }
 
 /**
- * Fallback regex-based approach for extracting tools
+ * Extract all tool declaration segments from the code
  */
-function extractToolsWithRegex(code: string): MethodDoc[] {
-	const tools: MethodDoc[] = []
+function extractToolSegments(code: string): string[] {
+	const segments: string[] = []
 
-	// Find all tool calls
-	const toolRegex = /this\.server\.tool\(\s*["']([^"']+)["'],\s*({[^}]+}),/g
+	// Find all tool declarations with their surrounding context
+	const toolRegex =
+		/this\.server\.tool\(\s*["']([^"']+)["'],\s*({[\s\S]+?}),\s*async/g
 	let match: RegExpExecArray | null
-	console.log("Starting regex-based tool extraction...")
 
-	// Use a different approach to avoid assignment in expression
 	match = toolRegex.exec(code)
-	let matchCount = 0
 	while (match !== null) {
-		matchCount++
-		const toolName = match[1]
-		const schemaText = match[2]
-		console.log(`Found tool via regex: ${toolName}`)
-		console.log(`Schema text from regex: ${schemaText}`)
+		// Store the full match which includes the tool name and schema
+		const fullMatchStart = match.index
+		const matchLen = match[0].length
+		const segment = code.substring(
+			fullMatchStart,
+			fullMatchStart + matchLen
+		)
+		segments.push(segment)
 
-		const params = parseZodSchema(schemaText)
-
-		tools.push({
-			name: toolName,
-			description: `Auto-generated docs for "${toolName}" (regex-extracted)`,
-			params,
-			returns: {
-				type: "string",
-				description: `Result from tool "${toolName}"`
-			}
-		})
 		match = toolRegex.exec(code)
 	}
-	console.log(`Regex extraction complete. Found ${matchCount} tools.`)
 
-	return tools
+	return segments
+}
+
+/**
+ * Extract tool information from a single tool segment using AST parsing for the schema
+ */
+function extractToolInfo(segment: string): MethodDoc | null {
+	// Extract tool name
+	const nameMatch = segment.match(/this\.server\.tool\(\s*["']([^"']+)["']/)
+	const toolName = nameMatch ? nameMatch[1] : "unknown"
+
+	console.log(`Extracting info for tool: ${toolName}`)
+
+	// Extract schema section
+	const schemaMatch = segment.match(/,\s*({[\s\S]+?}),\s*async/)
+	let params: Param[] = []
+
+	if (schemaMatch) {
+		const schemaText = schemaMatch[1]
+		console.log(`Found schema text for ${toolName}:`)
+		console.log(schemaText)
+
+		// Create a valid JavaScript object expression for the schema
+		// We'll prepend 'const schema = ' to make it parseable
+		const parseableSchema = `const schema = ${schemaText}`
+
+		try {
+			// Parse the schema as a small AST
+			const schemaAst = parse(parseableSchema, {
+				ecmaVersion: 2022,
+				sourceType: "module"
+			})
+
+			// Walk the AST to find the object properties
+			params = extractSchemaParams(schemaAst)
+		} catch (error) {
+			console.error(`Error parsing schema for tool ${toolName}:`, error)
+			// Fall back to regex-based extraction
+			params = extractParamsWithRegex(schemaText)
+		}
+	}
+
+	// Create the tool documentation
+	return {
+		name: toolName,
+		description: `Auto-generated docs for "${toolName}"`,
+		params,
+		returns: {
+			type: "string",
+			description: `Result from tool "${toolName}"`
+		}
+	}
+}
+
+/**
+ * Extract parameters from a schema AST
+ */
+function extractSchemaParams(schemaAst: Record<string, unknown>): Param[] {
+	const params: Param[] = []
+
+	try {
+		// Walk the AST to find VariableDeclaration nodes
+		walk.simple(schemaAst, {
+			VariableDeclaration(node: Record<string, unknown>) {
+				// We look for the schema object properties
+				if (
+					node.declarations &&
+					Array.isArray(node.declarations) &&
+					node.declarations.length > 0
+				) {
+					const declaration = node.declarations[0]
+					if (
+						declaration.init &&
+						declaration.init.type === "ObjectExpression"
+					) {
+						const properties = declaration.init.properties
+
+						// Process each property in the schema object
+						for (const prop of properties) {
+							if (
+								prop.type !== "Property" ||
+								prop.key.type !== "Identifier"
+							) {
+								continue
+							}
+
+							const paramName = prop.key.name
+							let paramType = "unknown"
+							let optional = false
+
+							// Check if this is a z.type() or z.type().optional() call
+							if (prop.value.type === "CallExpression") {
+								const callee = prop.value.callee
+
+								// Handle z.type()
+								if (
+									callee.type === "MemberExpression" &&
+									callee.object.type === "Identifier" &&
+									callee.object.name === "z" &&
+									callee.property.type === "Identifier"
+								) {
+									paramType = callee.property.name
+								}
+
+								// Handle z.type().optional()
+								if (
+									callee.type === "MemberExpression" &&
+									callee.property.type === "Identifier" &&
+									callee.property.name === "optional"
+								) {
+									optional = true
+
+									// Get the actual type from the inner z.type() call
+									if (
+										callee.object.type ===
+											"CallExpression" &&
+										callee.object.callee.type ===
+											"MemberExpression" &&
+										callee.object.callee.object.type ===
+											"Identifier" &&
+										callee.object.callee.object.name ===
+											"z" &&
+										callee.object.callee.property.type ===
+											"Identifier"
+									) {
+										paramType =
+											callee.object.callee.property.name
+									}
+								}
+							}
+
+							console.log(
+								`Found parameter via AST: ${paramName}: ${paramType}${optional ? " (optional)" : ""}`
+							)
+							params.push({
+								name: paramName,
+								type: paramType,
+								optional
+							})
+						}
+					}
+				}
+			}
+		})
+	} catch (error) {
+		console.error("Error walking schema AST:", error)
+	}
+
+	return params
+}
+
+/**
+ * Fallback method to extract parameters using regex
+ */
+function extractParamsWithRegex(schemaText: string): Param[] {
+	console.log(`[Fallback] Parsing schema text with regex: ${schemaText}`)
+	// Improved regex that can handle optional parameters and different Zod types
+	const regex = /(\w+)\s*:\s*z\.(\w+)\(\)(?:\.optional\(\))?/g
+	const params: Param[] = []
+	let match: RegExpExecArray | null
+
+	match = regex.exec(schemaText)
+	while (match !== null) {
+		const optional = match[0].includes(".optional()")
+		console.log(
+			`Found param with regex: ${match[1]} of type ${match[2]}${optional ? " (optional)" : ""}`
+		)
+		params.push({
+			name: match[1],
+			type: match[2],
+			optional
+		})
+		match = regex.exec(schemaText)
+	}
+
+	console.log(`[Fallback] Found ${params.length} params`)
+	return params
 }
 
 /**
