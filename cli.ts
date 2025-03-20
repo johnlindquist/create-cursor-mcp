@@ -475,14 +475,20 @@ async function cloneExistingServer(
 	packageManager: PackageManager
 ) {
 	const targetDir = join(process.cwd(), projectName)
+	const templateDir = getTemplateDir()
 
-	// Clone the repository
-	console.log(pc.cyan("\n⚡️ Cloning repository..."))
-	execSync(`git clone ${githubUrl} ${targetDir}`, { stdio: "inherit" })
+	// Create project directory and copy template files
+	console.log(pc.cyan("\n⚡️ Creating project directory..."))
+	await mkdir(targetDir, { recursive: true })
 
-	// Remove the .git folder and reinitialize the repository
-	console.log(pc.cyan("\n⚡️ Initializing fresh git repository..."))
-	execSync(`rm -rf ${join(targetDir, ".git")}`)
+	// Copy template files
+	console.log(pc.cyan("\n⚡️ Copying template files..."))
+	await cp(templateDir, targetDir, {
+		recursive: true
+	})
+
+	// Initialize git repository
+	console.log(pc.cyan("\n⚡️ Initializing git repository..."))
 	execSync("git init -b main", { cwd: targetDir })
 
 	// Update configurations with new name
@@ -684,8 +690,8 @@ async function main() {
 		let targetDir: string
 		let customWorkerUrl: string | undefined
 
-		if (isCloning && githubUrl) {
-			// For cloned repositories, get the execPath and worker URL
+		if (isCloning) {
+			// Using the template setup and configuration
 			const execPath = await cloneExistingServer(
 				githubUrl,
 				projectName,
