@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import npmWhich from "npm-which"
 import { join } from "node:path"
+import npmWhich from "npm-which"
 import pc from "picocolors"
 
 /**
@@ -15,7 +15,9 @@ async function printMcpJson(
     try {
         if (!projectName) {
             console.error(pc.red("Project name is required"))
-            console.error(pc.yellow("Usage: npm run print-mcp-json [workerUrl]"))
+            console.error(
+                pc.yellow("Usage: npm run print-mcp-json [workerUrl]")
+            )
             process.exit(1)
         }
 
@@ -43,7 +45,11 @@ async function printMcpJson(
         console.log(JSON.stringify(mcpConfig, null, 2))
         console.log("\n")
         console.log(pc.green("\n✨ MCP configuration ready:"))
-        console.log(pc.cyan("Add this to your Cursor settings to use this MCP server 🚀\n"))
+        console.log(
+            pc.cyan(
+                "Add this to your Cursor settings to use this MCP server 🚀\n"
+            )
+        )
     } catch (error) {
         console.error(
             pc.red("Error generating MCP configuration:"),
@@ -54,7 +60,7 @@ async function printMcpJson(
 }
 
 // Check if this script is being run directly
-if (import.meta.url.startsWith('file:')) {
+if (import.meta.url.startsWith("file:")) {
     // Get optional workerUrl parameter from command line args
     const workerUrl = process.argv[2]
 
@@ -62,4 +68,4 @@ if (import.meta.url.startsWith('file:')) {
     printMcpJson(undefined, workerUrl)
 }
 
-export { printMcpJson } 
+export { printMcpJson }

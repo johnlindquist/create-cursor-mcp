@@ -203,11 +203,15 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 	pkg.name = projectName
 
 	// Add docgen script to the scripts section if it doesn't exist
-	if (!pkg.scripts.docgen) {
-		pkg.scripts.docgen = "workers-mcp docgen src/api/index.ts"
+	if (!pkg.scripts["docgen-acorn"]) {
+		pkg.scripts["docgen-acorn"] =
+			"workers-mcp docgen-acorn src/api/index.ts"
 
 		// Update deploy script to run docgen before deployment if needed
-		if (pkg.scripts.deploy && !pkg.scripts.deploy.includes("docgen")) {
+		if (
+			pkg.scripts.deploy &&
+			!pkg.scripts.deploy.includes("docgen-acorn")
+		) {
 			// Check if npm-run-all is in devDependencies
 			const hasRunAll = pkg.devDependencies?.["npm-run-all"]
 
@@ -215,14 +219,14 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 				// If using run-s, add docgen to the list
 				pkg.scripts.deploy = pkg.scripts.deploy.replace(
 					"run-s",
-					"run-s docgen"
+					"run-s docgen-acorn"
 				)
 			} else if (hasRunAll) {
 				// Add run-s if npm-run-all exists but not using run-s yet
-				pkg.scripts.deploy = `run-s docgen ${pkg.scripts.deploy}`
+				pkg.scripts.deploy = `run-s docgen-acorn ${pkg.scripts.deploy}`
 			} else {
 				// Since run-s isn't available, prepend the docgen script directly
-				pkg.scripts.deploy = `npm run docgen && ${pkg.scripts.deploy}`
+				pkg.scripts.deploy = `npm run docgen-acorn && ${pkg.scripts.deploy}`
 
 				// Add npm-run-all as a dev dependency for future use
 				if (!pkg.devDependencies) {
@@ -260,7 +264,7 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 
 This project automatically generates documentation for your MCP tools using JSDoc comments. When you run the deploy script, it will:
 
-1. Generate documentation from your JSDoc comments using \`workers-mcp docgen\`
+1. Generate documentation from your JSDoc comments using \`pnpm run docgen-acorn\`
 2. Output the documentation to \`dist/docs.json\`
 3. Deploy your worker with the documentation included
 
@@ -331,7 +335,7 @@ async function setupMCPAndWorkers(
 	// Generate documentation first
 	console.log(pc.cyan("\n⚡️ Generating API documentation..."))
 	const runCommand = getRunCommand(packageManager)(targetDir)
-	execSync(`${runCommand} docgen`, {
+	execSync(`${runCommand} docgen-acorn`, {
 		cwd: targetDir,
 		stdio: "inherit"
 	})
@@ -363,35 +367,53 @@ async function setupMCPAndWorkers(
 	})
 }
 
-async function getMCPCommand(projectName: string, targetDir: string) {
+async function getMCPCommand(
+	projectName: string,
+	targetDir: string,
+	workerUrl?: string
+) {
 	// Get workers-mcp executable path
 	const execPath = npmWhich(targetDir).sync("workers-mcp")
 
-	// Get the worker URL (default format)
-	const workerUrl = `https://${projectName}.workers.dev`
+	// Get the worker URL (default format or provided URL)
+	const finalWorkerUrl = workerUrl || `https://${projectName}.workers.dev`
 
 	// Construct MCP command
-	return [execPath, "run", projectName, workerUrl, targetDir].join(" ")
+	return [execPath, "run", projectName, finalWorkerUrl, targetDir].join(" ")
 }
 
 async function handleFinalSteps(
 	targetDir: string,
 	mcpCommand: string,
-	projectName: string
+	projectName: string,
+	customWorkerUrl?: string
 ) {
-	// Create the MCP server object
-	const mcpServer = {
-		name: projectName,
-		command: mcpCommand,
-		args: [projectName, `https://${projectName}.workers.dev`, targetDir]
+	// Get the worker URL (use custom URL if provided, otherwise use default format)
+	const workerUrl = customWorkerUrl || `https://${projectName}.workers.dev`
+
+	// Extract execPath from mcpCommand
+	const execPath = mcpCommand.split(" ")[0]
+
+	// Create the complete MCP configuration object
+	const mcpConfig = {
+		mcpServers: {
+			[projectName]: {
+				command: execPath,
+				args: ["run", projectName, workerUrl, targetDir]
+			}
+		}
 	}
 
-	// Output the MCP server object as JSON
+	// Output the MCP configuration as JSON
 	console.log("\n")
-	console.log(JSON.stringify(mcpServer, null, 2))
+	console.log(JSON.stringify(mcpConfig, null, 2))
 	console.log("\n")
 	console.log(pc.green("\n✨ MCP server created successfully!"))
 	console.log(pc.cyan("Happy hacking! 🚀\n"))
+
+	// Inform the user about the print-mcp-json script
+	console.log(pc.yellow("📘 To get your MCP configuration JSON later, run:"))
+	console.log(pc.cyan(`cd ${targetDir} && npm run print-mcp-json\n`))
 }
 
 async function cloneExistingServer(
@@ -443,7 +465,7 @@ async function cloneExistingServer(
 	// Generate documentation before deployment
 	console.log(pc.cyan("\n⚡️ Generating API documentation..."))
 	const runCommand = getRunCommand(packageManager)(targetDir)
-	execSync(`${runCommand} docgen`, {
+	execSync(`${runCommand} docgen-acorn`, {
 		cwd: targetDir,
 		stdio: "inherit"
 	})
@@ -472,16 +494,8 @@ async function cloneExistingServer(
 	// Get workers-mcp executable path
 	const execPath = npmWhich(targetDir).sync("workers-mcp")
 
-	// Construct MCP command
-	const mcpCommand = [
-		execPath,
-		"run",
-		projectName,
-		workerUrl,
-		targetDir
-	].join(" ")
-
-	return mcpCommand
+	// Return the execPath for use in handleFinalSteps
+	return execPath
 }
 
 async function main() {
@@ -500,22 +514,40 @@ async function main() {
 
 		let mcpCommand: string
 		let targetDir: string
+		let customWorkerUrl: string | undefined
 
 		if (isCloning && githubUrl) {
-			mcpCommand = await cloneExistingServer(
+			// For cloned repositories, get the execPath and worker URL
+			const execPath = await cloneExistingServer(
 				githubUrl,
 				projectName,
 				packageManager as PackageManager
 			)
+
 			targetDir = join(process.cwd(), projectName)
+
+			// Get the worker URL (ask user for input in cloneExistingServer)
+			const { workerUrl } = await prompts({
+				type: "text",
+				name: "workerUrl",
+				message: "Please enter the URL of your deployed worker:",
+				validate: (value) =>
+					value.length > 0 ? true : "Worker URL is required",
+				initial: `https://${projectName}.workers.dev`
+			})
+
+			customWorkerUrl = workerUrl
+			mcpCommand = `${execPath} run ${projectName} ${workerUrl} ${targetDir}`
 		} else {
 			targetDir = await setupProjectFiles(projectName)
 			await updateConfigurations(targetDir, projectName)
 			setupDependencies(targetDir, packageManager as PackageManager)
 
 			if (skipDeploy) {
-				// If skipping deployment, just return a local command
-				mcpCommand = `${npmWhich(targetDir).sync("workers-mcp")} run ${projectName} http://localhost:8787 ${targetDir}`
+				// If skipping deployment, just return a local command with localhost URL
+				const execPath = npmWhich(targetDir).sync("workers-mcp")
+				mcpCommand = `${execPath} run ${projectName} http://localhost:8787 ${targetDir}`
+				customWorkerUrl = "http://localhost:8787"
 
 				// Let user know about documentation generation
 				console.log(
@@ -525,15 +557,14 @@ async function main() {
 				)
 				console.log(
 					pc.yellow(
-						`You can generate docs manually by running "${
-							packageManager === "npm"
-								? "npm run"
-								: packageManager === "yarn"
-									? "yarn"
-									: packageManager === "pnpm"
-										? "pnpm run"
-										: "bun run"
-						} docgen" when you're ready to deploy.`
+						`You can generate docs manually by running "${packageManager === "npm"
+							? "npm run"
+							: packageManager === "yarn"
+								? "yarn"
+								: packageManager === "pnpm"
+									? "pnpm run"
+									: "bun run"
+						} docgen-acorn" when you're ready to deploy.`
 					)
 				)
 			} else {
@@ -543,10 +574,17 @@ async function main() {
 					skipDeploy
 				)
 				mcpCommand = await getMCPCommand(projectName, targetDir)
+				// Default Cloudflare worker URL
+				customWorkerUrl = `https://${projectName}.workers.dev`
 			}
 		}
 
-		await handleFinalSteps(targetDir, mcpCommand, projectName)
+		await handleFinalSteps(
+			targetDir,
+			mcpCommand,
+			projectName,
+			customWorkerUrl
+		)
 	} catch (error) {
 		console.error(
 			pc.red("Error creating project:"),
