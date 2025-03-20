@@ -14,7 +14,6 @@
 		"dev": "run-s check wrangler:dev",
 		"wrangler:dev": "wrangler dev",
 		"deploy": "run-s docgen check wrangler:deploy",
-		"docgen": "workers-mcp docgen src/index.ts",
 		"docgen-acorn": "cd template && tsx scripts/docgen-acorn.ts src/api/index.ts",
 		"wrangler:deploy": "wrangler deploy --minify",
 		"check": "biome check --write .",

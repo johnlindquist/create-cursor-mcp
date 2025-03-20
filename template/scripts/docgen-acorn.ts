@@ -3,7 +3,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { parse } from "acorn"
 import * as walk from "acorn-walk"
-import type { EntrypointDoc, Param, Returns, MethodDoc } from "./docgen-types"
+import type { EntrypointDoc, MethodDoc, Param, Returns } from "./docgen-types"
 
 // Define explicit Node type to avoid 'any' usage
 interface ASTNode {
@@ -51,7 +51,8 @@ function parseZodSchema(schemaText: string): Param[] {
 }
 
 async function generateDocs(inputFilePath?: string): Promise<void> {
-    const filePath = inputFilePath ?? path.join(process.cwd(), "src", "api", "index.ts")
+    const filePath =
+        inputFilePath ?? path.join(process.cwd(), "src", "api", "index.ts")
 
     console.log(`Reading file: ${filePath}`)
     // Read the file content
@@ -60,12 +61,12 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
     // Preprocess TypeScript to JavaScript for parsing
     // Remove type definitions, interfaces, etc.
     const jsCode = code
-        .replace(/export\s+interface\s+\w+\s*\{[^}]*\}/g, '')
-        .replace(/:\s*\w+(\[\])?/g, '')
-        .replace(/<[^>]*>/g, '')
-        .replace(/implements\s+\w+/g, '')
-        .replace(/extends\s+\w+(<[^>]*>)?/g, '')
-        .replace(/satisfies\s+\w+(<[^>]*>)?/g, '')
+        .replace(/export\s+interface\s+\w+\s*\{[^}]*\}/g, "")
+        .replace(/:\s*\w+(\[\])?/g, "")
+        .replace(/<[^>]*>/g, "")
+        .replace(/implements\s+\w+/g, "")
+        .replace(/extends\s+\w+(<[^>]*>)?/g, "")
+        .replace(/satisfies\s+\w+(<[^>]*>)?/g, "")
 
     try {
         // Parse the code to an AST with basic acorn
@@ -82,7 +83,8 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
 
         // Walk the AST, looking for CallExpressions
         walk.simple(ast, {
-            CallExpression(node: ASTNode) { // Using typed interface instead of any
+            CallExpression(node: ASTNode) {
+                // Using typed interface instead of any
                 // We're looking for something like `this.server.tool(...)`
                 if (
                     node.callee &&
@@ -106,7 +108,10 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
 
                     // Extract tool name
                     let toolName = "unknownTool"
-                    if (toolNameNode.type === "Literal" && typeof toolNameNode.value === "string") {
+                    if (
+                        toolNameNode.type === "Literal" &&
+                        typeof toolNameNode.value === "string"
+                    ) {
                         toolName = toolNameNode.value
                         console.log(`Tool name: ${toolName}`)
                     }
@@ -150,7 +155,9 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
         fs.mkdirSync(distDir, { recursive: true })
         const docsPath = path.join(distDir, "docs.json")
         fs.writeFileSync(docsPath, JSON.stringify(docsJson, null, 2))
-        console.log(`Wrote docs.json with ${tools.length} tools discovered to ${docsPath}`)
+        console.log(
+            `Wrote docs.json with ${tools.length} tools discovered to ${docsPath}`
+        )
 
         // Print a summary of discovered tools
         console.log("\nDiscovered tools:")
@@ -159,9 +166,11 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
             console.log(`  - Description: ${tool.description}`)
             console.log("  - Parameters:")
             for (const param of tool.params) {
-                console.log(`    * ${param.name}: ${param.type}${param.optional ? ' (optional)' : ''}`)
+                console.log(
+                    `    * ${param.name}: ${param.type}${param.optional ? " (optional)" : ""}`
+                )
             }
-            console.log(`  - Returns: ${tool.returns?.type || 'void'}`)
+            console.log(`  - Returns: ${tool.returns?.type || "void"}`)
             console.log("")
         }
     } catch (error) {
@@ -174,7 +183,8 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
         const docsJson: Record<string, EntrypointDoc> = {
             MCPMathServer: {
                 exported_as: "MCPMathServer",
-                description: "Detected tools from this.server.tool(...) calls using regex fallback",
+                description:
+                    "Detected tools from this.server.tool(...) calls using regex fallback",
                 methods: tools,
                 statics: {}
             }
@@ -184,7 +194,9 @@ async function generateDocs(inputFilePath?: string): Promise<void> {
         fs.mkdirSync(distDir, { recursive: true })
         const docsPath = path.join(distDir, "docs.json")
         fs.writeFileSync(docsPath, JSON.stringify(docsJson, null, 2))
-        console.log(`Wrote docs.json with ${tools.length} tools discovered using regex fallback`)
+        console.log(
+            `Wrote docs.json with ${tools.length} tools discovered using regex fallback`
+        )
     }
 }
 
