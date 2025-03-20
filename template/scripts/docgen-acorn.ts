@@ -253,15 +253,15 @@ function extractSchemaParams(schemaAst: Record<string, unknown>): Param[] {
 									// Get the actual type from the inner z.type() call
 									if (
 										callee.object.type ===
-											"CallExpression" &&
+										"CallExpression" &&
 										callee.object.callee.type ===
-											"MemberExpression" &&
+										"MemberExpression" &&
 										callee.object.callee.object.type ===
-											"Identifier" &&
+										"Identifier" &&
 										callee.object.callee.object.name ===
-											"z" &&
+										"z" &&
 										callee.object.callee.property.type ===
-											"Identifier"
+										"Identifier"
 									) {
 										paramType =
 											callee.object.callee.property.name

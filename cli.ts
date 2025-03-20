@@ -205,36 +205,10 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 	// Add docgen script to the scripts section if it doesn't exist
 	if (!pkg.scripts["docgen-acorn"]) {
 		pkg.scripts["docgen-acorn"] =
-			"workers-mcp docgen-acorn src/api/index.ts"
+			"tsx scripts/docgen-acorn.ts src/api/index.ts"
 
-		// Update deploy script to run docgen before deployment if needed
-		if (
-			pkg.scripts.deploy &&
-			!pkg.scripts.deploy.includes("docgen-acorn")
-		) {
-			// Check if npm-run-all is in devDependencies
-			const hasRunAll = pkg.devDependencies?.["npm-run-all"]
-
-			if (hasRunAll && pkg.scripts.deploy.includes("run-s")) {
-				// If using run-s, add docgen to the list
-				pkg.scripts.deploy = pkg.scripts.deploy.replace(
-					"run-s",
-					"run-s docgen-acorn"
-				)
-			} else if (hasRunAll) {
-				// Add run-s if npm-run-all exists but not using run-s yet
-				pkg.scripts.deploy = `run-s docgen-acorn ${pkg.scripts.deploy}`
-			} else {
-				// Since run-s isn't available, prepend the docgen script directly
-				pkg.scripts.deploy = `npm run docgen-acorn && ${pkg.scripts.deploy}`
-
-				// Add npm-run-all as a dev dependency for future use
-				if (!pkg.devDependencies) {
-					pkg.devDependencies = {}
-				}
-				pkg.devDependencies["npm-run-all"] = "^4.1.5"
-			}
-		}
+		// No need to update deploy script to run docgen separately since it's part of the build process
+		// which is already called by the deploy script
 	}
 
 	await writeFile(pkgPath, JSON.stringify(pkg, null, 2))
@@ -262,13 +236,13 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 		readmeContent += `
 ## Documentation Generation
 
-This project automatically generates documentation for your MCP tools using JSDoc comments. When you run the deploy script, it will:
+This project automatically generates documentation for your MCP tools using JSDoc comments. When you run the build script, it will:
 
-1. Generate documentation from your JSDoc comments using \`pnpm run docgen-acorn\`
+1. Generate documentation from your JSDoc comments
 2. Output the documentation to \`dist/docs.json\`
-3. Deploy your worker with the documentation included
+3. Print the MCP JSON configuration
 
-This enables tools like Cursor AI to understand and properly use your MCP tools.
+The deploy script calls the build script before deploying, ensuring your documentation is always up-to-date.
 
 Example JSDoc format for MCP tools:
 
@@ -332,12 +306,8 @@ async function setupMCPAndWorkers(
 					? "pnpm dlx"
 					: "bunx"
 
-	// Generate documentation first
-	console.log(pc.cyan("\n⚡️ Generating API documentation..."))
-	execSync(`${runCommand} docgen-acorn`, {
-		cwd: targetDir,
-		stdio: "inherit"
-	})
+	// No need to separately generate documentation since it's now part of the build process
+	// which is called by the deploy script
 
 	// Generate and upload secret
 	console.log(pc.cyan("\n⚡️ Setting up MCP secret..."))
@@ -545,13 +515,9 @@ async function cloneExistingServer(
 		stdio: "inherit"
 	})
 
-	// Generate documentation before deployment
-	console.log(pc.cyan("\n⚡️ Generating API documentation..."))
+	// No need to separately generate documentation before deployment
+	// since it's now part of the build process that's called by deploy
 	const runCommand = getRunCommand(packageManager)(targetDir)
-	execSync(`${runCommand} docgen-acorn`, {
-		cwd: targetDir,
-		stdio: "inherit"
-	})
 
 	// Deploy the worker
 	console.log(pc.cyan("\n⚡️ Deploying to Cloudflare Workers..."))
@@ -786,20 +752,19 @@ async function main() {
 				// Let user know about documentation generation
 				console.log(
 					pc.yellow(
-						"\n⚠️ Documentation generation has been configured but not run yet."
+						"\n⚠️ Documentation generation is part of the build process but hasn't been run yet."
 					)
 				)
 				console.log(
 					pc.yellow(
-						`You can generate docs manually by running "${
-							packageManager === "npm"
-								? "npm run"
-								: packageManager === "yarn"
-									? "yarn"
-									: packageManager === "pnpm"
-										? "pnpm run"
-										: "bun run"
-						} docgen-acorn" when you're ready to deploy.`
+						`You can generate docs manually by running "${packageManager === "npm"
+							? "npm run"
+							: packageManager === "yarn"
+								? "yarn"
+								: packageManager === "pnpm"
+									? "pnpm run"
+									: "bun run"
+						} build" when you're ready to build and deploy.`
 					)
 				)
 			} else {
