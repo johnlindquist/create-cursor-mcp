@@ -468,13 +468,14 @@ async function handleFinalSteps(
 
 	// Extract the actual deployed worker URL from the mcpCommand if available
 	// This is particularly important to capture the full URL with account name and path
-	const cmdWorkerUrl = mcpCommand.split(" ")[2]
+	const parts = mcpCommand.split(" ")
+	const cmdWorkerUrl = parts.length > 2 ? parts[2] : undefined
 	if (cmdWorkerUrl?.includes("workers.dev")) {
 		workerUrl = cmdWorkerUrl
 	}
 
 	// Extract execPath from mcpCommand
-	const execPath = mcpCommand.split(" ")[0]
+	const execPath = parts.length > 0 ? parts[0] : ""
 
 	// Create the complete MCP configuration object
 	const mcpConfig = {
@@ -878,10 +879,13 @@ async function main() {
 					)
 
 					// Update the deployment config with the new URL
-					await saveDeploymentUrl(customWorkerUrl, targetDir)
+					if (customWorkerUrl) {
+						await saveDeploymentUrl(customWorkerUrl, targetDir)
+					}
 
 					// Update mcpCommand with the new URL
-					const execPath = mcpCommand.split(" ")[0]
+					const parts = mcpCommand.split(" ")
+					const execPath = parts.length > 0 ? parts[0] : ""
 					mcpCommand = `${execPath} run ${projectName} ${customWorkerUrl} ${targetDir}`
 				}
 			}
