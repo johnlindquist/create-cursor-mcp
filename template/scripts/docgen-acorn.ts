@@ -158,14 +158,18 @@ function extractToolInfo(segment: string): MethodDoc | null {
 
 	// Extract tool description (second argument if it's a string)
 	let toolDescription = `Auto-generated docs for "${toolName}" (regex-extracted)`
-	const descMatch = segment.match(/this\.server\.tool\(\s*["'][^"']+["']\s*,\s*["']([^"']+)["']/)
-	if (descMatch && descMatch[1]) {
+	const descMatch = segment.match(
+		/this\.server\.tool\(\s*["'][^"']+["']\s*,\s*["']([^"']+)["']/
+	)
+	if (descMatch?.[1]) {
 		toolDescription = descMatch[1]
 	}
 
 	// Extract schema section
 	// If we have a description, schema is the third argument, otherwise it's the second
-	const schemaMatch = segment.match(/(?:["'][^"']*["']\s*,\s*)?({[\s\S]+?}),\s*async/)
+	const schemaMatch = segment.match(
+		/(?:["'][^"']*["']\s*,\s*)?({[\s\S]+?}),\s*async/
+	)
 	let params: Param[] = []
 
 	if (schemaMatch) {
@@ -251,53 +255,74 @@ function extractSchemaParams(schemaAst: Record<string, unknown>): Param[] {
 								// For chains like z.number().describe().optional(), we need to traverse
 								// to the root z.number() call
 								let baseExpr = currentExpr
-								while (baseExpr &&
-									baseExpr.callee &&
-									baseExpr.callee.type === "MemberExpression" &&
+								while (
+									baseExpr?.callee &&
+									baseExpr.callee.type ===
+										"MemberExpression" &&
 									baseExpr.callee.object &&
-									baseExpr.callee.object.type === "CallExpression") {
-									baseExpr = baseExpr.callee.object;
+									baseExpr.callee.object.type ===
+										"CallExpression"
+								) {
+									baseExpr = baseExpr.callee.object
 								}
 
 								// Now baseExpr should be the z.number() call
-								if (baseExpr &&
-									baseExpr.callee &&
-									baseExpr.callee.type === "MemberExpression" &&
+								if (
+									baseExpr?.callee &&
+									baseExpr.callee.type ===
+										"MemberExpression" &&
 									baseExpr.callee.object &&
-									baseExpr.callee.object.type === "Identifier" &&
+									baseExpr.callee.object.type ===
+										"Identifier" &&
 									baseExpr.callee.object.name === "z" &&
 									baseExpr.callee.property &&
-									baseExpr.callee.property.type === "Identifier") {
-									paramType = baseExpr.callee.property.name;
+									baseExpr.callee.property.type ===
+										"Identifier"
+								) {
+									paramType = baseExpr.callee.property.name
 								}
 
 								// Handle all method chains - search for .describe() and .optional()
-								while (currentExpr && currentExpr.type === "CallExpression") {
+								while (
+									currentExpr &&
+									currentExpr.type === "CallExpression"
+								) {
 									if (
-										currentExpr.callee.type === "MemberExpression" &&
-										currentExpr.callee.property.type === "Identifier"
+										currentExpr.callee.type ===
+											"MemberExpression" &&
+										currentExpr.callee.property.type ===
+											"Identifier"
 									) {
 										// Check for .optional()
-										if (currentExpr.callee.property.name === "optional") {
+										if (
+											currentExpr.callee.property.name ===
+											"optional"
+										) {
 											optional = true
 										}
 
 										// Check for .describe()
-										if (currentExpr.callee.property.name === "describe" &&
+										if (
+											currentExpr.callee.property.name ===
+												"describe" &&
 											currentExpr.arguments &&
 											currentExpr.arguments.length > 0 &&
-											currentExpr.arguments[0].type === "Literal") {
-											description = currentExpr.arguments[0].value as string
+											currentExpr.arguments[0].type ===
+												"Literal"
+										) {
+											description = currentExpr
+												.arguments[0].value as string
 										}
 									}
 
 									// Move to the parent expression in the chain
-									currentExpr = currentExpr.callee.object;
+									currentExpr = currentExpr.callee.object
 								}
 							}
 
 							console.log(
-								`Found parameter via AST: ${paramName}: ${paramType}${optional ? " (optional)" : ""
+								`Found parameter via AST: ${paramName}: ${paramType}${
+									optional ? " (optional)" : ""
 								}${description ? ` - "${description}"` : ""}`
 							)
 
@@ -325,7 +350,8 @@ function extractSchemaParams(schemaAst: Record<string, unknown>): Param[] {
 function extractParamsWithRegex(schemaText: string): Param[] {
 	const params: Param[] = []
 	// Match parameter definitions in the format: paramName: z.type().optional()
-	const paramRegex = /(\w+):\s*z\.(\w+)\(\)(?:\.optional\(\))?(?:\.describe\(["']([^"']+)["']\))?/g
+	const paramRegex =
+		/(\w+):\s*z\.(\w+)\(\)(?:\.optional\(\))?(?:\.describe\(["']([^"']+)["']\))?/g
 	let match: RegExpExecArray | null
 
 	match = paramRegex.exec(schemaText)
@@ -343,7 +369,8 @@ function extractParamsWithRegex(schemaText: string): Param[] {
 		})
 
 		console.log(
-			`Found parameter via regex: ${paramName}: ${paramType}${optional ? " (optional)" : ""
+			`Found parameter via regex: ${paramName}: ${paramType}${
+				optional ? " (optional)" : ""
 			}${description ? ` - ${description}` : ""}`
 		)
 

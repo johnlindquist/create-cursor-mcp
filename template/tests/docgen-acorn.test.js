@@ -1,7 +1,7 @@
-// docgen-acorn.test.js
-import { describe, it, expect } from "vitest"
 import fs from "node:fs"
 import path from "node:path"
+// docgen-acorn.test.js
+import { describe, expect, it } from "vitest"
 
 // Import the docs.json file
 const docsPath = path.join(process.cwd(), "dist", "docs.json")
