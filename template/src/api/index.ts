@@ -154,10 +154,7 @@ export class MCPMathServer extends DurableMCP {
 	}
 }
 
-export class WorkerEntrypoint extends MCPMathServer {}
-export default WorkerEntrypoint
-
-export const handler = {
+export default {
 	async fetch(
 		request: Request,
 		env: Env,
