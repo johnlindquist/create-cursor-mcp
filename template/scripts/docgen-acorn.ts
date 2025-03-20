@@ -3,9 +3,10 @@ import fs from "node:fs"
 import path from "node:path"
 import { parse } from "acorn"
 import * as walk from "acorn-walk"
-import type { EntrypointDoc, MethodDoc, Param, Returns } from "./docgen-types"
+import type { EntrypointDoc, MethodDoc, Param } from "./docgen-types"
 
-// Define a more complete type for AST nodes
+// Define more complete types if needed for future use
+/* 
 interface ASTNode {
 	type: string
 	callee?: {
@@ -41,6 +42,7 @@ interface Property {
 	}
 	optional?: boolean
 }
+*/
 
 /**
  * Generate docs by first extracting tool sections with regex, then
@@ -120,8 +122,11 @@ function extractToolSegments(code: string): string[] {
 	const segments: string[] = []
 
 	// Find all tool declarations with their surrounding context
+	// Updated regex to capture both forms:
+	// 1. With description: this.server.tool("name", "description", {...}, async)
+	// 2. Without description: this.server.tool("name", {...}, async)
 	const toolRegex =
-		/this\.server\.tool\(\s*["']([^"']+)["'],\s*({[\s\S]+?}),\s*async/g
+		/this\.server\.tool\(\s*["']([^"']+)["'](?:\s*,\s*["']([^"']+)["'])?(?:\s*,\s*({[\s\S]+?})),\s*async/g
 	let match: RegExpExecArray | null
 
 	match = toolRegex.exec(code)
@@ -151,8 +156,16 @@ function extractToolInfo(segment: string): MethodDoc | null {
 
 	console.log(`Extracting info for tool: ${toolName}`)
 
+	// Extract tool description (second argument if it's a string)
+	let toolDescription = `Auto-generated docs for "${toolName}" (regex-extracted)`
+	const descMatch = segment.match(/this\.server\.tool\(\s*["'][^"']+["']\s*,\s*["']([^"']+)["']/)
+	if (descMatch && descMatch[1]) {
+		toolDescription = descMatch[1]
+	}
+
 	// Extract schema section
-	const schemaMatch = segment.match(/,\s*({[\s\S]+?}),\s*async/)
+	// If we have a description, schema is the third argument, otherwise it's the second
+	const schemaMatch = segment.match(/(?:["'][^"']*["']\s*,\s*)?({[\s\S]+?}),\s*async/)
 	let params: Param[] = []
 
 	if (schemaMatch) {
@@ -183,7 +196,7 @@ function extractToolInfo(segment: string): MethodDoc | null {
 	// Create the tool documentation
 	return {
 		name: toolName,
-		description: `Auto-generated docs for "${toolName}"`,
+		description: toolDescription,
 		params,
 		returns: {
 			type: "string",
@@ -227,54 +240,71 @@ function extractSchemaParams(schemaAst: Record<string, unknown>): Param[] {
 							const paramName = prop.key.name
 							let paramType = "unknown"
 							let optional = false
+							let description = undefined
 
 							// Check if this is a z.type() or z.type().optional() call
 							if (prop.value.type === "CallExpression") {
-								const callee = prop.value.callee
+								// New: Track the current expression to check for method chains
+								let currentExpr = prop.value
 
-								// Handle z.type()
-								if (
-									callee.type === "MemberExpression" &&
-									callee.object.type === "Identifier" &&
-									callee.object.name === "z" &&
-									callee.property.type === "Identifier"
-								) {
-									paramType = callee.property.name
+								// First, try to extract the base type
+								// For chains like z.number().describe().optional(), we need to traverse
+								// to the root z.number() call
+								let baseExpr = currentExpr
+								while (baseExpr &&
+									baseExpr.callee &&
+									baseExpr.callee.type === "MemberExpression" &&
+									baseExpr.callee.object &&
+									baseExpr.callee.object.type === "CallExpression") {
+									baseExpr = baseExpr.callee.object;
 								}
 
-								// Handle z.type().optional()
-								if (
-									callee.type === "MemberExpression" &&
-									callee.property.type === "Identifier" &&
-									callee.property.name === "optional"
-								) {
-									optional = true
+								// Now baseExpr should be the z.number() call
+								if (baseExpr &&
+									baseExpr.callee &&
+									baseExpr.callee.type === "MemberExpression" &&
+									baseExpr.callee.object &&
+									baseExpr.callee.object.type === "Identifier" &&
+									baseExpr.callee.object.name === "z" &&
+									baseExpr.callee.property &&
+									baseExpr.callee.property.type === "Identifier") {
+									paramType = baseExpr.callee.property.name;
+								}
 
-									// Get the actual type from the inner z.type() call
+								// Handle all method chains - search for .describe() and .optional()
+								while (currentExpr && currentExpr.type === "CallExpression") {
 									if (
-										callee.object.type ===
-											"CallExpression" &&
-										callee.object.callee.type ===
-											"MemberExpression" &&
-										callee.object.callee.object.type ===
-											"Identifier" &&
-										callee.object.callee.object.name ===
-											"z" &&
-										callee.object.callee.property.type ===
-											"Identifier"
+										currentExpr.callee.type === "MemberExpression" &&
+										currentExpr.callee.property.type === "Identifier"
 									) {
-										paramType =
-											callee.object.callee.property.name
+										// Check for .optional()
+										if (currentExpr.callee.property.name === "optional") {
+											optional = true
+										}
+
+										// Check for .describe()
+										if (currentExpr.callee.property.name === "describe" &&
+											currentExpr.arguments &&
+											currentExpr.arguments.length > 0 &&
+											currentExpr.arguments[0].type === "Literal") {
+											description = currentExpr.arguments[0].value as string
+										}
 									}
+
+									// Move to the parent expression in the chain
+									currentExpr = currentExpr.callee.object;
 								}
 							}
 
 							console.log(
-								`Found parameter via AST: ${paramName}: ${paramType}${optional ? " (optional)" : ""}`
+								`Found parameter via AST: ${paramName}: ${paramType}${optional ? " (optional)" : ""
+								}${description ? ` - "${description}"` : ""}`
 							)
+
 							params.push({
 								name: paramName,
 								type: paramType,
+								description,
 								optional
 							})
 						}
@@ -283,37 +313,43 @@ function extractSchemaParams(schemaAst: Record<string, unknown>): Param[] {
 			}
 		})
 	} catch (error) {
-		console.error("Error walking schema AST:", error)
+		console.error("Error extracting schema parameters:", error)
 	}
 
 	return params
 }
 
 /**
- * Fallback method to extract parameters using regex
+ * Fallback method to extract parameters using regex when AST parsing fails
  */
 function extractParamsWithRegex(schemaText: string): Param[] {
-	console.log(`[Fallback] Parsing schema text with regex: ${schemaText}`)
-	// Improved regex that can handle optional parameters and different Zod types
-	const regex = /(\w+)\s*:\s*z\.(\w+)\(\)(?:\.optional\(\))?/g
 	const params: Param[] = []
+	// Match parameter definitions in the format: paramName: z.type().optional()
+	const paramRegex = /(\w+):\s*z\.(\w+)\(\)(?:\.optional\(\))?(?:\.describe\(["']([^"']+)["']\))?/g
 	let match: RegExpExecArray | null
 
-	match = regex.exec(schemaText)
+	match = paramRegex.exec(schemaText)
 	while (match !== null) {
+		const paramName = match[1]
+		const paramType = match[2]
 		const optional = match[0].includes(".optional()")
-		console.log(
-			`Found param with regex: ${match[1]} of type ${match[2]}${optional ? " (optional)" : ""}`
-		)
+		const description = match[3] || undefined
+
 		params.push({
-			name: match[1],
-			type: match[2],
+			name: paramName,
+			type: paramType,
+			description,
 			optional
 		})
-		match = regex.exec(schemaText)
+
+		console.log(
+			`Found parameter via regex: ${paramName}: ${paramType}${optional ? " (optional)" : ""
+			}${description ? ` - ${description}` : ""}`
+		)
+
+		match = paramRegex.exec(schemaText)
 	}
 
-	console.log(`[Fallback] Found ${params.length} params`)
 	return params
 }
 

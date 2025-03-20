@@ -16,9 +16,10 @@ export class MCPMathServer extends DurableMCP {
 	async init() {
 		this.server.tool(
 			"add",
+			"Adds two numbers together",
 			{
-				a: z.number(),
-				b: z.number()
+				a: z.number().describe("First number to add"),
+				b: z.number().describe("Second number to add")
 			},
 			async ({ a, b }) => {
 				return {
@@ -29,9 +30,10 @@ export class MCPMathServer extends DurableMCP {
 
 		this.server.tool(
 			"subtract",
+			"Subtracts the second number from the first",
 			{
-				a: z.number(),
-				b: z.number()
+				a: z.number().describe("Number to subtract from"),
+				b: z.number().describe("Number to subtract")
 			},
 			async ({ a, b }) => {
 				return {
