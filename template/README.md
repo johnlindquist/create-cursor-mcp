@@ -35,3 +35,32 @@ Your application will be available at [http://localhost:5173](http://localhost:5
 ```bash
 npx deploy
 ```
+
+## Using with Cursor
+
+After deployment, you can generate the MCP configuration JSON to add to your Cursor AI settings:
+
+```bash
+pnpm run print-mcp-json
+```
+
+This will output a JSON configuration like this:
+
+```json
+{
+  "mcpServers": {
+    "your-project-name": {
+      "command": "/path/to/workers-mcp",
+      "args": ["run", "your-project-name", "https://your-project-name.workers.dev", "/path/to/project"]
+    }
+  }
+}
+```
+
+You can add this to your Cursor settings to enable your MCP tools.
+
+If you deployed to a custom URL, you can specify it:
+
+```bash
+pnpm run print-mcp-json https://your-custom-worker-url.com
+```
