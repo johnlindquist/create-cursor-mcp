@@ -209,11 +209,14 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 		// Update deploy script to run docgen before deployment if needed
 		if (pkg.scripts.deploy && !pkg.scripts.deploy.includes("docgen")) {
 			// Check if npm-run-all is in devDependencies
-			const hasRunAll = pkg.devDependencies && pkg.devDependencies["npm-run-all"];
+			const hasRunAll = pkg.devDependencies?.["npm-run-all"]
 
 			if (hasRunAll && pkg.scripts.deploy.includes("run-s")) {
 				// If using run-s, add docgen to the list
-				pkg.scripts.deploy = pkg.scripts.deploy.replace("run-s", "run-s docgen")
+				pkg.scripts.deploy = pkg.scripts.deploy.replace(
+					"run-s",
+					"run-s docgen"
+				)
 			} else if (hasRunAll) {
 				// Add run-s if npm-run-all exists but not using run-s yet
 				pkg.scripts.deploy = `run-s docgen ${pkg.scripts.deploy}`
@@ -223,7 +226,7 @@ async function updateConfigurations(targetDir: string, projectName: string) {
 
 				// Add npm-run-all as a dev dependency for future use
 				if (!pkg.devDependencies) {
-					pkg.devDependencies = {};
+					pkg.devDependencies = {}
 				}
 				pkg.devDependencies["npm-run-all"] = "^4.1.5"
 			}
@@ -522,13 +525,14 @@ async function main() {
 				)
 				console.log(
 					pc.yellow(
-						`You can generate docs manually by running "${packageManager === "npm"
-							? "npm run"
-							: packageManager === "yarn"
-								? "yarn"
-								: packageManager === "pnpm"
-									? "pnpm run"
-									: "bun run"
+						`You can generate docs manually by running "${
+							packageManager === "npm"
+								? "npm run"
+								: packageManager === "yarn"
+									? "yarn"
+									: packageManager === "pnpm"
+										? "pnpm run"
+										: "bun run"
 						} docgen" when you're ready to deploy.`
 					)
 				)

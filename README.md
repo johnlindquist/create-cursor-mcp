@@ -114,6 +114,22 @@ When your PR is merged to the main branch, it will automatically:
 3. Create a release on GitHub with release notes
 4. Publish to npm
 
+### Documentation Generation
+
+The template includes two approaches for generating documentation from your code:
+
+1. **Standard docgen**: Uses the default `workers-mcp` tool to generate documentation from JSDoc comments:
+   ```bash
+   pnpm docgen
+   ```
+
+2. **AST-based docgen**: A more robust alternative that parses the code's Abstract Syntax Tree:
+   ```bash
+   pnpm docgen-acorn
+   ```
+
+The AST-based approach offers better compatibility with complex TypeScript code and provides more reliable extraction of tool definitions. It will automatically fallback to regex-based extraction if the AST parsing fails.
+
 > **Note:** This package uses fully automated semantic versioning. Version numbers are determined by commit messages.
 
 ## Acknowledgements
