@@ -1,8 +1,8 @@
 #!/usr/bin/env node
+import fs from "node:fs"
 import { join } from "node:path"
 import npmWhich from "npm-which"
 import pc from "picocolors"
-import fs from "node:fs"
 
 /**
  * Prints complete MCP configuration as JSON
@@ -75,11 +75,14 @@ if (import.meta.url.startsWith("file:")) {
     // Get project name from package.json
     let projectName = ""
     try {
-        const packageJsonPath = join(process.cwd(), 'package.json')
-        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+        const packageJsonPath = join(process.cwd(), "package.json")
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"))
         projectName = packageJson.name || ""
     } catch (error) {
-        console.error(pc.red("Error reading package.json:"), error instanceof Error ? error.message : error)
+        console.error(
+            pc.red("Error reading package.json:"),
+            error instanceof Error ? error.message : error
+        )
         process.exit(1)
     }
 

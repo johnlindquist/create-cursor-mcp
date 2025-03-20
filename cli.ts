@@ -763,13 +763,14 @@ async function main() {
 				)
 				console.log(
 					pc.yellow(
-						`You can generate docs manually by running "${packageManager === "npm"
-							? "npm run"
-							: packageManager === "yarn"
-								? "yarn"
-								: packageManager === "pnpm"
-									? "pnpm run"
-									: "bun run"
+						`You can generate docs manually by running "${
+							packageManager === "npm"
+								? "npm run"
+								: packageManager === "yarn"
+									? "yarn"
+									: packageManager === "pnpm"
+										? "pnpm run"
+										: "bun run"
 						} build" when you're ready to build and deploy.`
 					)
 				)

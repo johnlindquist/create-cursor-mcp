@@ -45,12 +45,12 @@
 		"zod": "^3.24.2"
 	},
 	"scripts": {
-		"build": "run-s build:tsc build:vite build:docgen build:print",
+		"build": "run-s build:tsc build:vite build:docgen",
 		"build:tsc": "tsc -b",
 		"build:vite": "vite build",
 		"build:docgen": "tsx scripts/docgen-acorn.ts src/api/index.ts",
-		"build:print": "tsx scripts/print-mcp-json.ts",
-		"deploy": "npm run build && wrangler deploy",
+		"deploy": "npm run build && wrangler deploy && npm run post-deploy",
+		"post-deploy": "echo 'Deployment complete! Run the following to generate MCP config:' && echo 'npm run print-mcp-json <worker-url>'",
 		"dev": "vite",
 		"lint": "eslint .",
 		"preview": "vite preview",

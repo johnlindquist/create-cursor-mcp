@@ -8,10 +8,7 @@
 	"bin": {
 		"create-cursor-mcp": "./dist/cli.js"
 	},
-	"files": [
-		"dist",
-		"template"
-	],
+	"files": ["dist", "template"],
 	"scripts": {
 		"build": "tsc",
 		"dev": "run-s check wrangler:dev",
