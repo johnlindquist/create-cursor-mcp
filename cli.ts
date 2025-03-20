@@ -318,11 +318,11 @@ function getRunCommand(packageManager: PackageManager) {
 async function setupMCPAndWorkers(
 	targetDir: string,
 	packageManager: PackageManager,
-	skipDeploy: boolean
-) {
-	console.log(
-		pc.cyan("\n⚡️ Setting up MCP and deploying to Cloudflare Workers...")
-	)
+	skipDeploy: boolean,
+	projectName: string
+): Promise<string> {
+	// Get the run command for the package manager
+	const runCommand = getRunCommand(packageManager)(targetDir)
 	const setupCommand =
 		packageManager === "npm"
 			? "npx"
@@ -334,13 +334,13 @@ async function setupMCPAndWorkers(
 
 	// Generate documentation first
 	console.log(pc.cyan("\n⚡️ Generating API documentation..."))
-	const runCommand = getRunCommand(packageManager)(targetDir)
 	execSync(`${runCommand} docgen-acorn`, {
 		cwd: targetDir,
 		stdio: "inherit"
 	})
 
 	// Generate and upload secret
+	console.log(pc.cyan("\n⚡️ Setting up MCP secret..."))
 	execSync(`${setupCommand} workers-mcp secret generate`, {
 		cwd: targetDir,
 		stdio: "inherit"
@@ -352,7 +352,7 @@ async function setupMCPAndWorkers(
 				"\n⚠️ Skipping deployment (--skip-deploy flag or SKIP_DEPLOY=true was set)"
 			)
 		)
-		return `${setupCommand} workers-mcp run ${targetDir} http://localhost:8787 ${targetDir}`
+		return `${setupCommand} workers-mcp run ${projectName} http://localhost:8787 ${targetDir}`
 	}
 
 	execSync(`${setupCommand} workers-mcp secret upload`, {
@@ -360,11 +360,46 @@ async function setupMCPAndWorkers(
 		stdio: "inherit"
 	})
 
-	// Deploy the worker
+	// Deploy the worker and capture the output to extract the URL
 	console.log(pc.cyan("\n⚡️ Deploying to Cloudflare Workers..."))
-	execSync(`${runCommand} deploy`, {
-		stdio: "inherit"
-	})
+	let deployedUrl: string | undefined
+
+	try {
+		const deployOutput = execSync(`${runCommand} deploy`, {
+			stdio: "pipe",
+			encoding: "utf-8",
+			cwd: targetDir
+		});
+
+		// Save the output to a file for reference and debugging
+		const outputPath = join(targetDir, ".wrangler", "deploy", "last-deploy-output.txt");
+		await mkdir(join(targetDir, ".wrangler", "deploy"), { recursive: true });
+		await writeFile(outputPath, deployOutput, "utf-8");
+
+		// Log the deploy output to the console
+		console.log(deployOutput);
+
+		// Use the helper function to extract and save the URL
+		deployedUrl = await extractWorkerUrl(deployOutput, targetDir);
+	} catch (error) {
+		console.error(pc.red("Error during deployment:"), error);
+		// Fallback to running the deploy without capturing output
+		execSync(`${runCommand} deploy`, {
+			stdio: "inherit",
+			cwd: targetDir
+		});
+	}
+
+	// Get workers-mcp executable path
+	const execPath = npmWhich(targetDir).sync("workers-mcp")
+
+	// Construct and return the MCP command with the extracted URL if available
+	if (deployedUrl) {
+		return `${execPath} run ${projectName} ${deployedUrl} ${targetDir}`
+	} else {
+		// Default to the standard URL format if we couldn't extract it
+		return `${execPath} run ${projectName} https://${projectName}.workers.dev ${targetDir}`
+	}
 }
 
 async function getMCPCommand(
@@ -375,11 +410,32 @@ async function getMCPCommand(
 	// Get workers-mcp executable path
 	const execPath = npmWhich(targetDir).sync("workers-mcp")
 
-	// Get the worker URL (default format or provided URL)
-	const finalWorkerUrl = workerUrl || `https://${projectName}.workers.dev`
+	// If a specific worker URL is provided, use it
+	if (workerUrl) {
+		return [execPath, "run", projectName, workerUrl, targetDir].join(" ")
+	}
 
-	// Construct MCP command
-	return [execPath, "run", projectName, finalWorkerUrl, targetDir].join(" ")
+	// Try to find the full deployed URL from the file system
+	try {
+		// Check if a .wrangler/deploy directory exists with deployments info
+		const deployConfigPath = join(targetDir, ".wrangler/deploy/config.json")
+		if (existsSync(deployConfigPath)) {
+			const deployConfig = JSON.parse(await readFile(deployConfigPath, "utf-8"))
+			// Extract the deployed URL if available
+			if (deployConfig.deployments && deployConfig.deployments.length > 0) {
+				const latestDeployment = deployConfig.deployments[0]
+				if (latestDeployment.url) {
+					return [execPath, "run", projectName, latestDeployment.url, targetDir].join(" ")
+				}
+			}
+		}
+	} catch (error) {
+		console.log(pc.yellow("\nCouldn't extract deployment URL from config, using default format"))
+	}
+
+	// Default URL format if we couldn't extract from deployment output
+	const defaultWorkerUrl = `https://${projectName}.workers.dev`
+	return [execPath, "run", projectName, defaultWorkerUrl, targetDir].join(" ")
 }
 
 async function handleFinalSteps(
@@ -389,7 +445,14 @@ async function handleFinalSteps(
 	customWorkerUrl?: string
 ) {
 	// Get the worker URL (use custom URL if provided, otherwise use default format)
-	const workerUrl = customWorkerUrl || `https://${projectName}.workers.dev`
+	let workerUrl = customWorkerUrl || `https://${projectName}.workers.dev`
+
+	// Extract the actual deployed worker URL from the mcpCommand if available
+	// This is particularly important to capture the full URL with account name and path
+	const cmdWorkerUrl = mcpCommand.split(" ")[2];
+	if (cmdWorkerUrl && cmdWorkerUrl.includes("workers.dev")) {
+		workerUrl = cmdWorkerUrl;
+	}
 
 	// Extract execPath from mcpCommand
 	const execPath = mcpCommand.split(" ")[0]
@@ -472,18 +535,49 @@ async function cloneExistingServer(
 
 	// Deploy the worker
 	console.log(pc.cyan("\n⚡️ Deploying to Cloudflare Workers..."))
-	execSync(`${runCommand} deploy`, {
-		stdio: "inherit"
-	})
+	let deployedUrl = "";
 
-	// Get the worker URL
+	try {
+		const deployOutput = execSync(`${runCommand} deploy`, {
+			stdio: "pipe",
+			encoding: "utf-8",
+			cwd: targetDir
+		});
+
+		// Save the output to a file for reference and debugging
+		await mkdir(join(targetDir, ".wrangler", "deploy"), { recursive: true });
+		await writeFile(
+			join(targetDir, ".wrangler", "deploy", "last-deploy-output.txt"),
+			deployOutput,
+			"utf-8"
+		);
+
+		// Log the deploy output to the console
+		console.log(deployOutput);
+
+		// Use the helper function to extract the URL
+		const extractedUrl = await extractWorkerUrl(deployOutput, targetDir);
+		if (extractedUrl) {
+			deployedUrl = extractedUrl;
+		}
+	} catch (error) {
+		console.error(pc.red("Error during deployment:"), error);
+		// Fallback to running the deploy without capturing output
+		execSync(`${runCommand} deploy`, {
+			stdio: "inherit",
+			cwd: targetDir
+		});
+	}
+
+	// Get the worker URL from the user (with the deployed URL as default if available)
 	const { workerUrl } = await prompts({
 		type: "text",
 		name: "workerUrl",
 		message:
-			"Please enter the URL of your deployed worker (from the output above):",
+			"Please confirm the URL of your deployed worker (from the output above):",
 		validate: (value) =>
-			value.length > 0 ? true : "Worker URL is required"
+			value.length > 0 ? true : "Worker URL is required",
+		initial: deployedUrl || `https://${projectName}.workers.dev`
 	})
 
 	if (!workerUrl) {
@@ -491,11 +585,76 @@ async function cloneExistingServer(
 		process.exit(1)
 	}
 
+	// Save the final confirmed URL
+	if (workerUrl !== deployedUrl) {
+		await saveDeploymentUrl(workerUrl, targetDir);
+	}
+
 	// Get workers-mcp executable path
 	const execPath = npmWhich(targetDir).sync("workers-mcp")
 
 	// Return the execPath for use in handleFinalSteps
 	return execPath
+}
+
+// Add this helper function to extract worker URLs from deployment output
+async function extractWorkerUrl(deployOutput: string, targetDir: string): Promise<string | undefined> {
+	// First try to match URLs with the pattern https://*.workers.dev/*
+	const urlMatches = deployOutput.match(/https:\/\/([a-zA-Z0-9-]+\.)*([a-zA-Z0-9-]+\.)?workers\.dev(\/[a-zA-Z0-9-\/]*)?/g);
+	if (urlMatches && urlMatches.length > 0) {
+		// Use the last URL found as it's usually the final/complete URL
+		const deployedUrl = urlMatches[urlMatches.length - 1];
+
+		console.log(pc.green(`\n✅ Identified deployment URL: ${deployedUrl}`));
+		await saveDeploymentUrl(deployedUrl, targetDir);
+		return deployedUrl;
+	}
+
+	// Next, try to extract URL from lines that directly mention the URL
+	const directUrlMatch = deployOutput.match(/(?:Deployed|Published|Available at)[^\n]*?(https:\/\/[^\s\n"']+)/i);
+	if (directUrlMatch && directUrlMatch[1]) {
+		const deployedUrl = directUrlMatch[1];
+
+		console.log(pc.green(`\n✅ Identified deployment URL from context: ${deployedUrl}`));
+		await saveDeploymentUrl(deployedUrl, targetDir);
+		return deployedUrl;
+	}
+
+	// As a last resort, check for lines containing the worker URL pattern
+	const lines = deployOutput.split('\n');
+	for (const line of lines) {
+		if (line.trim().startsWith('https://') && line.includes('workers.dev')) {
+			const deployedUrl = line.trim();
+			console.log(pc.green(`\n✅ Found worker URL in output: ${deployedUrl}`));
+			await saveDeploymentUrl(deployedUrl, targetDir);
+			return deployedUrl;
+		}
+	}
+
+	console.log(pc.yellow("\n⚠️ Could not automatically extract worker URL from deployment output."));
+	return undefined;
+}
+
+// Helper to save the deployment URL to the config file
+async function saveDeploymentUrl(url: string, targetDir: string): Promise<void> {
+	// Create the deployment directory if it doesn't exist
+	await mkdir(join(targetDir, ".wrangler", "deploy"), { recursive: true });
+
+	// Create a deploy config file with the URL for later reference
+	const deployConfig = {
+		deployments: [
+			{
+				timestamp: new Date().toISOString(),
+				url: url
+			}
+		]
+	};
+
+	await writeFile(
+		join(targetDir, ".wrangler", "deploy", "config.json"),
+		JSON.stringify(deployConfig, null, 2),
+		"utf-8"
+	);
 }
 
 async function main() {
@@ -526,18 +685,34 @@ async function main() {
 
 			targetDir = join(process.cwd(), projectName)
 
-			// Get the worker URL (ask user for input in cloneExistingServer)
-			const { workerUrl } = await prompts({
-				type: "text",
-				name: "workerUrl",
-				message: "Please enter the URL of your deployed worker:",
-				validate: (value) =>
-					value.length > 0 ? true : "Worker URL is required",
-				initial: `https://${projectName}.workers.dev`
-			})
+			// Get the actual deployed worker URL from the deployment config if available
+			try {
+				const deployConfigPath = join(targetDir, ".wrangler", "deploy", "config.json");
+				if (existsSync(deployConfigPath)) {
+					const deployConfig = JSON.parse(await readFile(deployConfigPath, "utf-8"));
+					if (deployConfig.deployments && deployConfig.deployments.length > 0) {
+						customWorkerUrl = deployConfig.deployments[0].url;
+						console.log(pc.green(`\n✅ Using deployed URL: ${customWorkerUrl}`));
+					}
+				}
+			} catch (error) {
+				console.log(pc.yellow("\nCouldn't read deployment URL from config file"));
+			}
 
-			customWorkerUrl = workerUrl
-			mcpCommand = `${execPath} run ${projectName} ${workerUrl} ${targetDir}`
+			// Fall back to asking the user if we couldn't extract from config
+			if (!customWorkerUrl) {
+				const { workerUrl } = await prompts({
+					type: "text",
+					name: "workerUrl",
+					message: "Please enter the URL of your deployed worker:",
+					validate: (value) =>
+						value.length > 0 ? true : "Worker URL is required",
+					initial: `https://${projectName}.workers.dev`
+				})
+				customWorkerUrl = workerUrl;
+			}
+
+			mcpCommand = `${execPath} run ${projectName} ${customWorkerUrl} ${targetDir}`
 		} else {
 			targetDir = await setupProjectFiles(projectName)
 			await updateConfigurations(targetDir, projectName)
@@ -557,26 +732,72 @@ async function main() {
 				)
 				console.log(
 					pc.yellow(
-						`You can generate docs manually by running "${
-							packageManager === "npm"
-								? "npm run"
-								: packageManager === "yarn"
-									? "yarn"
-									: packageManager === "pnpm"
-										? "pnpm run"
-										: "bun run"
+						`You can generate docs manually by running "${packageManager === "npm"
+							? "npm run"
+							: packageManager === "yarn"
+								? "yarn"
+								: packageManager === "pnpm"
+									? "pnpm run"
+									: "bun run"
 						} docgen-acorn" when you're ready to deploy.`
 					)
 				)
 			} else {
-				setupMCPAndWorkers(
+				mcpCommand = await setupMCPAndWorkers(
 					targetDir,
 					packageManager as PackageManager,
-					skipDeploy
+					skipDeploy,
+					projectName
 				)
-				mcpCommand = await getMCPCommand(projectName, targetDir)
-				// Default Cloudflare worker URL
-				customWorkerUrl = `https://${projectName}.workers.dev`
+
+				// Try to get the actual worker URL from the deployment config
+				try {
+					const deployConfigPath = join(targetDir, ".wrangler", "deploy", "config.json");
+					if (existsSync(deployConfigPath)) {
+						const deployConfig = JSON.parse(await readFile(deployConfigPath, "utf-8"));
+						if (deployConfig.deployments && deployConfig.deployments.length > 0) {
+							customWorkerUrl = deployConfig.deployments[0].url;
+							console.log(pc.green(`\n✅ Using deployed worker URL: ${customWorkerUrl}`));
+						}
+					}
+				} catch (error) {
+					console.log(pc.yellow("\nCouldn't read deployment URL from config file"));
+					// Fallback to default URL format
+					customWorkerUrl = `https://${projectName}.workers.dev`;
+					console.log(pc.yellow(`\nUsing default worker URL: ${customWorkerUrl}`));
+				}
+			}
+		}
+
+		// Final confirmation of the worker URL
+		if (customWorkerUrl && !skipDeploy) {
+			const { confirmUrl } = await prompts({
+				type: "confirm",
+				name: "confirmUrl",
+				message: `Is this the correct worker URL? ${customWorkerUrl}`,
+				initial: true
+			});
+
+			if (!confirmUrl) {
+				const { newUrl } = await prompts({
+					type: "text",
+					name: "newUrl",
+					message: "Please enter the correct worker URL:",
+					validate: (value) => value.length > 0 ? true : "Worker URL is required",
+					initial: customWorkerUrl
+				});
+
+				if (newUrl && newUrl !== customWorkerUrl) {
+					customWorkerUrl = newUrl;
+					console.log(pc.green(`\n✅ Updated worker URL to: ${customWorkerUrl}`));
+
+					// Update the deployment config with the new URL
+					await saveDeploymentUrl(customWorkerUrl, targetDir);
+
+					// Update mcpCommand with the new URL
+					const execPath = mcpCommand.split(" ")[0];
+					mcpCommand = `${execPath} run ${projectName} ${customWorkerUrl} ${targetDir}`;
+				}
 			}
 		}
 
